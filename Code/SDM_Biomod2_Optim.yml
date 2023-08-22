@@ -1,0 +1,33 @@
+# Loading corresponding data
+initial_wd: '/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/'
+output_wd: 
+#Dataset
+#Defining objects
+S_data: 'Sightings'
+E_data: 'Environmental_Var'
+Tempstemp: '8days'         # 8days or Daily
+Type: 'Surveys'            # Opportunistic or Surveys
+Domain: 'St_Laurent'       # Global or St_Laurent
+Year: 
+  - '2019'
+
+Eval_Year: 
+  - '2018'
+run: 'v0.001'
+
+#Models
+Single_Models: 
+  - "GAM"
+  - "GBM"
+  - "RF"
+
+CV_strategy: "random"
+#must be among random, kfold, block, strat, env or user.defined
+
+CV_%: 0.75
+
+
+
+
+
+# Description
