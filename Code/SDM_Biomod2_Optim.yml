@@ -24,7 +24,13 @@ Single_Models:
 CV_strategy: "random"
 #must be among random, kfold, block, strat, env or user.defined
 
-CV_%: 0.75
+CV_perc: 0.75
+
+Metrics_Eval: 
+  - 'ROC'
+  - 'TSS'
+  
+Seed_Val: 33
 
 
 

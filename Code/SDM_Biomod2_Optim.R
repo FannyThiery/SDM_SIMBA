@@ -13,61 +13,11 @@ library(rasterVis)
 library(doParallel)
 
 
-## Load input files ----
-
-load("../data/DataFrame_ENV8days_SIghtings_SL_2017to2020.rdata")
-load("../data/OPP_ENV_SL_2014to2020.RData")
-
-
-## Get bathymetric data for ggplot2 ----
-#  & rasterize sighting data later
-
-if( !exists("gsl.map") ) {
-  if( !file.exists("GSL.bathy.Rdata") ) {
-    gsl.map   <- getNOAA.bathy( lon1 = -70,
-                                lon2 = -59,
-                                lat1 =  45,
-                                lat2 =  51,
-                                resolution = 4 )
-    
-    gsl.bathy <- fortify.bathy( gsl.map )
-    
-    gsl.mask  <- gsl.bathy$z<=0
-    
-    save( list = c("gsl.map",
-                   "gsl.bathy",
-                   "gsl.mask"),
-          file = "GSL.bathy.Rdata" )
-  } else {
-    load( file = "GSL.bathy.Rdata" )
-  }
-}
-
-# Load files
-
-#Sightings
-# Defining objects
-#S_data = 'Sightings'
-#E_data = 'Environmental_Var'
-#Tempstemp = '8days'         # 8days or Daily
-#Type = 'Surveys'            # Opportunistic or Surveys
-#Domain = 'St_Laurent'       # Global or St_Laurent
-#Year = '2018'
-#run = 'v0.001'
-#
-## Loading corresponding data
-#initial_wd = '/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/'
-
 cfg = read_yaml('~/Documents/SDM_Biomod2_test.yml')
 
-#S_filename <- paste0(S_data, '_', Tempstemp, '_', Type, '_', Domain, '_', Year, '.', 'RDS')
-#E_filename <- paste0('Env', '_', Tempstemp, '_', Type, '_', Domain, '_', Year, '.', 'RDS') 
 
-#S_filepath <- paste0(initial_wd, S_data, '/', Tempstemp, '/', Type, '/', Domain, '/', Year, '/', S_filename)
-#E_filepath <- paste0(initial_wd, E_data, '/', Tempstemp, '/', Type, '/', Domain, '/', Year, '/', E_filename) 
 
-#Read by year
-# Row binding years for training dataset
+# Functions that will open and Row bind years for training dataset
   #Sightings
 Read_Sightings = function(cfg) {
   S_filename <- paste0(cfg$S_data, '_', cfg$Tempstemp, '_', cfg$Type, '_', cfg$Domain, '_', cfg$Year, '.', 'RDS')
@@ -110,10 +60,9 @@ Read_EvalEnv = function(cfg) {
 
   
 
-# Load Sightings
-#Sightings <- readRDS(S_filepath)
+# Put the file into the Sightings object
 Sightings = Read_Sightings(cfg)
-#Load Env variables
+# Put the file into the Env_var object
 Env_var <- Read_Env(cfg)
 
 
@@ -128,7 +77,6 @@ Eval_Env <- Read_EvalEnv(cfg)
 ######################. -------------
 ###### --- Setting data for Biomod2
 ######################. -------------
-
 
 # species name
 myRespName <- 'RIWH'
@@ -170,6 +118,8 @@ myData.all <- BIOMOD_FormatingData( resp.var      = myResp,
 myData.all
 
 
+############################# -----------
+######### pseud
 ## DATA 2.0) use ALL data for training & opportunistic data (2020) for evaluation ----
 
 # => need to Rasterize observation on regular grid because pseudo-absence data
