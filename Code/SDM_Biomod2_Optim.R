@@ -12,15 +12,20 @@ library(raster)
 library(rasterVis)
 library(doParallel)
 
-
-cfg = read_yaml('~/Documents/SDM_Biomod2_test.yml')
+#Load the yml file that corresponds
+cfg = read_yaml('~/Documents/SDM_SIMBA/Code/SDM_Biomod2_Optim.yml')
 
 
 
 # Functions that will open and Row bind years for training dataset
   #Sightings
 Read_Sightings = function(cfg) {
-  S_filename <- paste0(cfg$S_data, '_', cfg$Tempstemp, '_', cfg$Type, '_', cfg$Domain, '_', cfg$Year, '.', 'RDS')
+  S_filename <- paste0(cfg$S_data,    '_',
+                       cfg$Tempstemp, '_', 
+                       cfg$Type,      '_', 
+                       cfg$Domain,    '_',
+                       cfg$Year,      '.', 
+                       'RDS')
   S_filepath <- paste0(cfg$initial_wd, cfg$S_data, '/', cfg$Tempstemp, '/', cfg$Type, '/', cfg$Domain, '/', cfg$Year, '/', S_filename)
     x = lapply(S_filepath, readRDS) |> 
           dplyr::bind_rows()
@@ -58,7 +63,6 @@ Read_EvalEnv = function(cfg) {
 
 
 
-  
 
 # Put the file into the Sightings object
 Sightings = Read_Sightings(cfg)
@@ -118,88 +122,10 @@ myData.all <- BIOMOD_FormatingData( resp.var      = myResp,
 myData.all
 
 
-############################# -----------
-######### pseud
-## DATA 2.0) use ALL data for training & opportunistic data (2020) for evaluation ----
-
-# => need to Rasterize observation on regular grid because pseudo-absence data
-#    will be generated from them
-
-x.map <- unique( gsl.bathy$x ) %>% sort()
-y.map <- unique( gsl.bathy$y ) %>% sort()
-
-# !!! WARNING !!! HAS TO DO IT BETTER; JUST TESTING HERE
-#  => quick n' dirty try out : 
-#     1) use the extracted 2020 dataset to generate the rasters of 
-#        environmental data for completeness
-#     2) use 2020 sightings as presence
-#     3) generate PA based on the environmental raster stack
-
-# !!! WARNING !!! MISSING VALUES NOT ALLOWED
-data.nan <- is.na(ENV_8days2020_df)
-data.opt <- ENV_8days2020_df[ rowSums(data.nan)==0, ]
-
-# add proper coordinates from geometry 
-data.opt <- cbind( data.opt, st_coordinates(data.opt$geometry) )
-
-for( v in env.var ){
-  intp <- interp( x         = data.opt$X,
-                  y         = data.opt$Y,
-                  z         = data.opt[,v],
-                  duplicate = "mean",
-                  xo        = x.map,
-                  yo        = y.map )
-  intp$z[ gsl.map > 0 ] <- NA
-  
-  raster <- interp2xyz(intp) %>%
-    rasterFromXYZ(.)
-  
-  assign( paste0( v, ".raster" ), 
-          raster )
-}
-
-# carreful to comment the unused environmental variables (if any)
-myExpl.opt <- stack( bathy.raster,
-                     BBP_mean.raster,
-                     CDM_mean.raster,
-                     CHL.raster,
-                     PAR_mean.raster,
-                     pp.raster,
-                     sst.raster )
-
-myPA.opt  <- BIOMOD_FormatingData( resp.var       = OPP_ENV_2020$SPECCODE,
-                                   expl.var       = myExpl.opt,
-                                   resp.xy        = OPP_ENV_2020[,c("LONGITUDE", "LATITUDE")],
-                                   resp.name      = myRespName, 
-                                   PA.nb.rep      = 5, 
-                                   PA.nb.absences = 10000,   #should have about the same P/A ratio than in training data => NOT the case here
-                                   PA.strategy    = 'random',
-                                   filter.raster  = FALSE
-)
-
-myEval.opt  <- get_species_data( myPA.opt )
-names(myEval.opt) <- c( myRespName,
-                        c( "x", "y" ),
-                        env.var,
-                        "PA1" 
-)
-PA.i <- is.na(myEval.opt[,myRespName])
-myEval.opt[PA.i,myRespName] <- 0
-
-myData.opt <- BIOMOD_FormatingData( resp.var      = myResp,
-                                    expl.var      = myExpl,
-                                    resp.xy       = myXY,
-                                    resp.name     = myRespName, 
-                                    eval.resp.var = myEval.opt[,myRespName],
-                                    eval.expl.var = myEval.opt[,env.var],
-                                    eval.resp.xy  = myEval.opt[,c("x","y")] )
-
-
 
 ## Plot datasets ----
 
 plot(myData.all)
-plot(myData.opt)
 
 
 ## Define models options ----
@@ -219,9 +145,9 @@ myBiomodModel.all_v1.0 <- BIOMOD_Modeling(
   modeling.id       = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year, '.', cfg$Eval_Year, '.', cfg$run), #a character corresponding to the name (ID) of the simulation set (a random number by default)
   models            = cfg$Single_Models, #, "CTA", "GAM", "RF"),           #a vector containing model names to be computed, must be among GLM, GBM, GAM, CTA, ANN, SRE, FDA, MARS, RF, MAXENT.Phillips, MAXENT.Phillips.2
   models.pa         = NULL,                                       #a list containing for each model a vector defining which pseudo-absence datasets are to be used, must be among colnames(bm.format@PA.table)
-  CV.strategy       = cfg$CV_Strategy,                                   #a character corresponding to the cross-validation selection strategy, must be among random, kfold, block, strat, env or user.defined
-  CV.nb.rep         = 5,                                          #if strategy = 'random' or strategy = 'kfold', an integer corresponding to the number of repetitions to be done for calibration/validation splitting
-  CV.perc           = cfg$CV_%,                                        #if strategy = 'random', a numeric between 0 and 1 corresponding to the percentage of data used to calibrate the models (calibration/validation splitting)
+  CV.strategy       = cfg$CV_strategy,                                   #a character corresponding to the cross-validation selection strategy, must be among random, kfold, block, strat, env or user.defined
+  CV.nb.rep         = 2,                                          #if strategy = 'random' or strategy = 'kfold', an integer corresponding to the number of repetitions to be done for calibration/validation splitting
+  CV.perc           = cfg$CV_perc,                                        #if strategy = 'random', a numeric between 0 and 1 corresponding to the percentage of data used to calibrate the models (calibration/validation splitting)
   CV.do.full.models = TRUE,                                       #a logical value defining whether models calibrated and evaluated over the whole dataset should be computed or not
   #CV.k              = 3,                                          #if strategy = 'kfold' or strategy = 'strat' or strategy = 'env', an integer corresponding to the number of partitions
   #CV.balance        = 'presences',                                #if strategy = 'strat' or strategy = 'env', a character corresponding to how data will be balanced between partitions, must be either presences or absences
@@ -230,7 +156,7 @@ myBiomodModel.all_v1.0 <- BIOMOD_Modeling(
   #CV.user.table     = NULL,                                       #a matrix or data.frame defining for each repetition (in columns) which observation lines should be used for models calibration (TRUE) and validation (FALSE) (see BIOMOD_CrossValidation)
   weights           = NULL,                                       #a vector of numeric values corresponding to observation weights (one per observation, see Details)
   #prevalence        = 0.6,                                        #a numeric between 0 and 1 corresponding to the species prevalence to build 'weighted response weights' (see Details)
-  metric.eval       = c("ROC", "TSS"),                            #"KAPPA", "TSS","ACCURACY", BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
+  metric.eval       = cfg$Metrics_Eval,                            #"KAPPA", "TSS","ACCURACY", BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
   var.import        = 5,                                          #an integer corresponding to the number of permutations to be done for each variable to estimate variable importance
   scale.models      = FALSE,                                      #a logical value defining whether all models predictions should be scaled with a binomial GLM or not
   nb.cpu            = 10,                                          #a integer value corresponding to the number of computing resources to be used to parallelize the single models computation
@@ -239,27 +165,6 @@ myBiomodModel.all_v1.0 <- BIOMOD_Modeling(
   #modeling.id       = paste('RIWH',"FirstModeling",sep="")
 )
 
-
-## RUN 2.0) ALL Train. & Opport. 2020 Eval. ----
-
-myBiomodModel.opt_v2.0 <- BIOMOD_Modeling(
-  bm.format         = myData.opt,                                 #a BIOMOD.formated.data or BIOMOD.formated.data.PA object returned by the BIOMOD_FormatingData function
-  bm.options        = myBiomodOption,
-  modeling.id       = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year, '.', cfg$Eval_Year, '.', cfg$run), #a character corresponding to the name (ID) of the simulation set (a random number by default)
-  models            = c("GAM"), #, "CTA", "GAM", "RF"),           #a vector containing model names to be computed, must be among GLM, GBM, GAM, CTA, ANN, SRE, FDA, MARS, RF, MAXENT.Phillips, MAXENT.Phillips.2
-  models.pa         = NULL,                                       #a list containing for each model a vector defining which pseudo-absence datasets are to be used, must be among colnames(bm.format@PA.table)
-  CV.strategy       = "random",                                   #a character corresponding to the cross-validation selection strategy, must be among random, kfold, block, strat, env or user.defined
-  CV.nb.rep         = 5,                                          #if strategy = 'random' or strategy = 'kfold', an integer corresponding to the number of repetitions to be done for calibration/validation splitting
-  CV.perc           = 0.7,                                        #if strategy = 'random', a numeric between 0 and 1 corresponding to the percentage of data used to calibrate the models (calibration/validation splitting)
-  CV.do.full.models = TRUE,                                       #a logical value defining whether models calibrated and evaluated over the whole dataset should be computed or not
-  weights           = NULL,                                       #a vector of numeric values corresponding to observation weights (one per observation, see Details)
-  metric.eval       = c("ROC", "TSS"),                            #"KAPPA", "TSS","ACCURACY", BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
-  var.import        = 5,                                          #an integer corresponding to the number of permutations to be done for each variable to estimate variable importance
-  scale.models      = FALSE,                                      #a logical value defining whether all models predictions should be scaled with a binomial GLM or not
-  nb.cpu            = 2,                                          #a integer value corresponding to the number of computing resources to be used to parallelize the single models computation
-  seed.val          = 42,                                         #an integer value corresponding to the new seed value to be set
-  do.progress       = TRUE                                        #a logical value defining whether the progress bar is to be rendered or not
-)
 
 
 ## Evaluation scores ----

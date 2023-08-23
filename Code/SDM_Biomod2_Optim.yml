@@ -18,8 +18,8 @@ run: 'v0.001'
 #Models
 Single_Models: 
   - "GAM"
-  - "GBM"
-  - "RF"
+#  - "GBM"
+#  - "RF"
 
 CV_strategy: "random"
 #must be among random, kfold, block, strat, env or user.defined
