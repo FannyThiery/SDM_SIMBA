@@ -19,60 +19,114 @@ cfg = read_yaml('~/Documents/SDM_SIMBA/Code/SDM_Biomod2_Optim.yml')
 
 # Functions that will open and Row bind years for training dataset
   #Sightings
-Read_Sightings = function(cfg) {
-  S_filename <- paste0(cfg$S_data,    '_',
-                       cfg$Tempstemp, '_', 
-                       cfg$Type,      '_', 
-                       cfg$Domain,    '_',
-                       cfg$Year,      '.', 
-                       'RDS')
-  S_filepath <- paste0(cfg$initial_wd, cfg$S_data, '/', cfg$Tempstemp, '/', cfg$Type, '/', cfg$Domain, '/', cfg$Year, '/', S_filename)
-    x = lapply(S_filepath, readRDS) |> 
+Read_Sightings = function( cfg ) {
+  
+  S_filename <- paste0( cfg$S_data,    '_',
+                        cfg$Tempstemp, '_', 
+                        cfg$Type,      '_', 
+                        cfg$Domain,    '_',
+                        cfg$Year,      '.', 
+                        'RDS'              )
+  
+  S_filepath <- paste0( cfg$initial_wd, 
+                        cfg$S_data,    '/', 
+                        cfg$Tempstemp, '/', 
+                        cfg$Type,      '/', 
+                        cfg$Domain,    '/', 
+                        cfg$Year,      '/', 
+                        S_filename         )
+  
+    x = lapply( S_filepath, readRDS ) |> 
           dplyr::bind_rows()
-    return(x)
+    
+    return( x )
 }
 
   #Variables
-Read_Env = function(cfg) {
-  E_filename <- paste0('Env', '_', cfg$Tempstemp, '_', cfg$Type, '_', cfg$Domain, '_', cfg$Year, '.', 'RDS')
-  E_filepath <- paste0(cfg$initial_wd, cfg$E_data, '/', cfg$Tempstemp, '/', cfg$Type, '/', cfg$Domain, '/', cfg$Year, '/', E_filename) 
-  x = lapply(E_filepath, readRDS) |> 
+Read_Env = function( cfg ) {
+  
+  E_filename <- paste0( 'Env',         '_',
+                        cfg$Tempstemp, '_', 
+                        cfg$Type,      '_', 
+                        cfg$Domain,    '_', 
+                        cfg$Year,      '.', 
+                        'RDS'              )
+  
+  E_filepath <- paste0( cfg$initial_wd, 
+                        cfg$E_data,    '/', 
+                        cfg$Tempstemp, '/', 
+                        cfg$Type,      '/', 
+                        cfg$Domain,    '/', 
+                        cfg$Year,      '/', 
+                        E_filename         ) 
+  
+  x = lapply( E_filepath, readRDS ) |> 
     dplyr::bind_rows()
-  return(x)
+  
+  return( x )
 }
  
 
 # Row binding data for Evaluation
   #Sightings
-Read_EvalSightings = function(cfg) {
-  EvalS_filename <- paste0(cfg$S_data, '_', cfg$Tempstemp, '_', cfg$Type, '_', cfg$Domain, '_', cfg$Eval_Year, '.', 'RDS')
-  EvalS_filepath <- paste0(cfg$initial_wd, cfg$S_data, '/', cfg$Tempstemp, '/', cfg$Type, '/', cfg$Domain, '/', cfg$Eval_Year, '/', EvalS_filename)
-  x = lapply(EvalS_filepath, readRDS) |> 
+Read_EvalSightings = function( cfg ) {
+  
+  EvalS_filename <- paste0( cfg$S_data,    '_', 
+                            cfg$Tempstemp, '_', 
+                            cfg$Type,      '_', 
+                            cfg$Domain,    '_', 
+                            cfg$Eval_Year, '.', 
+                            'RDS'              )
+  
+  EvalS_filepath <- paste0( cfg$initial_wd, 
+                            cfg$S_data,    '/', 
+                            cfg$Tempstemp, '/', 
+                            cfg$Type,      '/', 
+                            cfg$Domain,    '/', 
+                            cfg$Eval_Year, '/', 
+                            EvalS_filename     )
+  
+  x = lapply( EvalS_filepath, readRDS ) |> 
     dplyr::bind_rows()
-  return(x)
+  
+  return( x )
 }
 
 #Variables
-Read_EvalEnv = function(cfg) {
-  EvalE_filename <- paste0('Env', '_', cfg$Tempstemp, '_', cfg$Type, '_', cfg$Domain, '_', cfg$Eval_Year, '.', 'RDS')
-  EvalE_filepath <- paste0(cfg$initial_wd, cfg$E_data, '/', cfg$Tempstemp, '/', cfg$Type, '/', cfg$Domain, '/', cfg$Eval_Year, '/', EvalE_filename) 
-  x = lapply(EvalE_filepath, readRDS) |> 
+Read_EvalEnv = function( cfg ) {
+  
+  EvalE_filename <- paste0( 'Env',         '_',
+                            cfg$Tempstemp, '_', 
+                            cfg$Type,      '_', 
+                            cfg$Domain,    '_', 
+                            cfg$Eval_Year, '.', 
+                            'RDS'              )
+  
+  EvalE_filepath <- paste0( cfg$initial_wd, 
+                            cfg$E_data,    '/', 
+                            cfg$Tempstemp, '/', 
+                            cfg$Type,      '/', 
+                            cfg$Domain,    '/', 
+                            cfg$Eval_Year, '/', 
+                            EvalE_filename.    ) 
+  
+  x = lapply( EvalE_filepath, readRDS ) |> 
     dplyr::bind_rows()
-  return(x)
+  return( x )
 }
 
 
 
 
 # Put the file into the Sightings object
-Sightings = Read_Sightings(cfg)
+Sightings = Read_Sightings( cfg )
 # Put the file into the Env_var object
-Env_var <- Read_Env(cfg)
+Env_var <- Read_Env( cfg )
 
 
 #Load Evaluation dataset
-Eval_Sightings <- Read_EvalSightings(cfg)
-Eval_Env <- Read_EvalEnv(cfg)
+Eval_Sightings <- Read_EvalSightings( cfg )
+Eval_Env <- Read_EvalEnv( cfg )
 
 
 
@@ -89,7 +143,7 @@ myRespName <- 'RIWH'
 myResp <- Sightings$SPECCODE
 
 # XY coordinates
-myXY <- st_coordinates(Env_var$geometry)
+myXY <- st_coordinates( Env_var$geometry )
 
 # environmental variables
 env.var <- c( "sst",
@@ -117,7 +171,7 @@ myData.all <- BIOMOD_FormatingData( resp.var      = myResp,
                                     resp.name     = myRespName, 
                                     eval.resp.var = myEvalResp,
                                     eval.expl.var = myEvalExpl,
-                                    eval.resp.xy  = myEvalXY      )
+                                    eval.resp.xy  = myEvalXY   )
 
 myData.all
 
