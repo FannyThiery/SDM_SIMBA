@@ -12,10 +12,32 @@ library(raster)
 library(rasterVis)
 library(doParallel)
 
+
+
+
 #Load the yml file that corresponds
 cfg = read_yaml('~/Documents/SDM_SIMBA/Code/SDM_Biomod2_Optim.yml')
 
+my_WD = paste0( cfg$output_wd,
+                cfg$Tempstemp,  '/',
+                cfg$Domain          )
 
+setwd(my_WD)
+
+n = length(cfg$Year)
+model_path = paste0( my_WD,         '/', 
+                     cfg$Year[1],   'to', 
+                     cfg$Year[n],   '.',
+                     cfg$Eval_Year, '/' )
+dir.create(model_path)
+
+setwd(model_path)
+
+out_config_file =  file.path(dir.create(cfg$run), paste0(cfg$Tempstemp, '/' , cfg$Domain, '/' , cfg$Year[1], 'to', cfg[n], '/', cfg$run))
+
+file.copy("/home/thieryf/Documents/SDM_SIMBA/Code/SDM_Biomod2_Optim.yml", to = paste0(model_path, cfg$run))
+
+setwd(paste0(model_path, cfg$run))
 
 # Functions that will open and Row bind years for training dataset
   #Sightings
@@ -108,7 +130,7 @@ Read_EvalEnv = function( cfg ) {
                             cfg$Type,      '/', 
                             cfg$Domain,    '/', 
                             cfg$Eval_Year, '/', 
-                            EvalE_filename.    ) 
+                            EvalE_filename    ) 
   
   x = lapply( EvalE_filepath, readRDS ) |> 
     dplyr::bind_rows()
@@ -137,7 +159,7 @@ Eval_Env <- Read_EvalEnv( cfg )
 ######################. -------------
 
 # species name
-myRespName <- 'RIWH'
+myRespName <- cfg$MyRespName
 
 # presence/absence data
 myResp <- Sightings$SPECCODE
@@ -149,8 +171,8 @@ myXY <- st_coordinates( Env_var$geometry )
 env.var <- c( "sst",
               "CHL",
               "pp",
-             # "CDM_mean",
-             # "BBP_mean",
+              "CDM_mean",
+              "BBP_mean",
               "PAR_mean",
               "bathy" )
 
@@ -175,8 +197,6 @@ myData.all <- BIOMOD_FormatingData( resp.var      = myResp,
 
 myData.all
 
-
-
 ## Plot datasets ----
 
 plot(myData.all)
@@ -193,10 +213,10 @@ myBiomodOption <- bm_DefaultModelingOptions()
 
 ## RUN 1.0) ALL Train. & 2020 Eval. ----
 
-myBiomodModel.all_v1.0 <- BIOMOD_Modeling(
+myBiomodModel <- BIOMOD_Modeling(
   bm.format         = myData.all,                                 #a BIOMOD.formated.data or BIOMOD.formated.data.PA object returned by the BIOMOD_FormatingData function
   bm.options        = myBiomodOption,
-  modeling.id       = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year, '.', cfg$Eval_Year, '.', cfg$run), #a character corresponding to the name (ID) of the simulation set (a random number by default)
+  modeling.id       = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run), #a character corresponding to the name (ID) of the simulation set (a random number by default)
   models            = cfg$Single_Models, #, "CTA", "GAM", "RF"),           #a vector containing model names to be computed, must be among GLM, GBM, GAM, CTA, ANN, SRE, FDA, MARS, RF, MAXENT.Phillips, MAXENT.Phillips.2
   models.pa         = NULL,                                       #a list containing for each model a vector defining which pseudo-absence datasets are to be used, must be among colnames(bm.format@PA.table)
   CV.strategy       = cfg$CV_strategy,                                   #a character corresponding to the cross-validation selection strategy, must be among random, kfold, block, strat, env or user.defined
@@ -223,26 +243,23 @@ myBiomodModel.all_v1.0 <- BIOMOD_Modeling(
 
 ## Evaluation scores ----
 
-# choose which model output to analyze
-model.postproc <- myBiomodModel.all_v1.0
-
 # create ggplot2 object
 # extract evaluations metrics for the "calibration" dataset
-g.1 <- bm_PlotEvalMean( bm.out      = model.postproc, #a BIOMOD.models.out or BIOMOD.ensemble.models.out object that can be obtained with the BIOMOD_Modeling or BIOMOD_EnsembleModeling functions 
+g.1 <- bm_PlotEvalMean( bm.out      = myBiomodModel, #a BIOMOD.models.out or BIOMOD.ensemble.models.out object that can be obtained with the BIOMOD_Modeling or BIOMOD_EnsembleModeling functions 
                         metric.eval = c("ROC", "TSS"),  #a vector containing evaluation metric names to be used, must be among ROC, TSS, KAPPA, ACCURACY, BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
                         dataset     = "calibration",    #a character corresponding to the dataset upon which evaluation metrics have been calculated and that is to be represented, must be among calibration, validation, evaluation
                         group.by    = "algo",           #a character corresponding to the way kept models will be combined to compute mean and sd evaluation scores, must be among full.name, PA, run, algo (if bm.out is a BIOMOD.models.out object), or full.name, merged.by.PA, merged.by.run, merged.by.algo (if bm.out is a BIOMOD.ensemble.models.out object)
                         do.plot     = FALSE )
 
 # extract evaluations metrics for the "validation" dataset
-g.2 <- bm_PlotEvalMean( bm.out      = model.postproc,
+g.2 <- bm_PlotEvalMean( bm.out      = myBiomodModel,
                         metric.eval = c("ROC", "TSS"),
                         dataset     = "validation",
                         group.by    = "algo",
                         do.plot     = FALSE )
 
 # extract evaluations metrics for the "evaluation" dataset
-g.3 <- bm_PlotEvalMean( bm.out      = model.postproc,
+g.3 <- bm_PlotEvalMean( bm.out      = myBiomodModel,
                         metric.eval = c("ROC", "TSS"),
                         dataset     = "evaluation",
                         group.by    = "algo",
@@ -307,16 +324,16 @@ g.eval
 dev.off()
 
 # save evaluation scores on hard drive
-capture.output( model.postproc@models.evaluation@val,
-                file = file.path( myRespName, 
-                                  paste( myRespName, "_GAM_2017-2020_Global_Eval-2020.csv", sep="") )
-)
+capture.output( myBiomodModel@models.evaluation@val,
+                file = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, 'Eval_mean.csv'))
+
+
 
 
 ## Importance of variables ----
 
 # extract values for each variable's importance
-g.data <- bm_PlotVarImpBoxplot( bm.out   = model.postproc,
+g.data <- bm_PlotVarImpBoxplot( bm.out   = myBiomodModel,
                                 group.by = c('expl.var', 'algo', 'algo'), #a 3-length vector containing the way kept models will be represented, must be among full.name, PA, run, algo, expl.var (if bm.out is a BIOMOD.models.out object), or full.name, merged.by.PA, merged.by.run, merged.by.algo, expl.var (if bm.out is a BIOMOD.ensemble.models.out object)
                                 do.plot  = FALSE                          #a logical value defining whether the plot is to be rendered or not
 )
@@ -336,17 +353,14 @@ dev.off()
 
 # save variable importance scores on hard drive
 capture.output( g.data$tab,
-                file = file.path( myRespName, 
-                                  paste( myRespName, "_GAM_2017-2020_VarImp.csv", sep="") )
-)
-
+                file = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, 'Var_Imp.csv'))
 
 
 
 ## --- Represent response curves 
 
 #png( "Resp_curv.png", width = 1000, height = 800 )
-bm_PlotResponseCurves( bm.out        = model.postproc, 
+bm_PlotResponseCurves( bm.out        = myBiomodModel, 
                        models.chosen = get_built_models( model.postproc,
                                                          full.name = "RIWH_allData_allRun_GAM" ), #a vector containing model names to be kept, must be either all or a sub-selection of model names that can be obtained with the get_built_models function
                        fixed.var     = 'median',                                                  #a character corresponding to the statistic to be used to fix as constant the remaining variables other than the one used to predict response, must be either mean, median, min, max
@@ -355,121 +369,81 @@ bm_PlotResponseCurves( bm.out        = model.postproc,
 #dev.off()
 
 
-## !!! WARNING !!! NOW ANALYZE EACH EXPLANATORY VARIABLE IMPORTANCE
-#                  AND RE-RUN MODELS WITH SELECTED (SIGNIFICANT) ONES
+###############---------- 
+##        Spatial Projections
+##############---------
+
+# Load data
+Proj_path = paste0("/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Environmental_Var/stars/Proj/8days/St_Laurent/", cfg$Proj_Year, '/', "proj_8days_St_Laurent_", cfg$Proj_Year, ".RData")
+proj_Env = load(Proj_path)
 
 
-## DATA 1.1) data 1.0 with {bathy,pp,CHL} ----
+###########################
+# One week in particular
 
-env.best <- c( "bathy",
-               "pp",
-               "CHL" )
+week_nb = 25
 
-myData.best <- BIOMOD_FormatingData( resp.var      = myResp,
-                                     expl.var      = OCC_ENV_2017to2020[ , env.best ],
-                                     resp.xy       = myXY,
-                                     resp.name     = myRespName, 
-                                     eval.resp.var = OCC_ENV_2020[, "SPECCODE" ],
-                                     eval.expl.var = OCC_ENV_2020[, env.best ],
-                                     eval.resp.xy  = OCC_ENV_2020[, c("Long","Lat") ] )
+# semaine 33
+bathy_week = as.data.frame( bathy )
+rm(bathy)
 
-myData.best
+list = ls()
+env <- bathy_week
+new_columns = NULL
+for (i in (list)) {
+  objet <- get(i)  # Obtient l'objet en utilisant son nom
+  if (class(objet) == "stars") {  # Vérifie si l'objet est de la classe "stars"
+    env_dataframe <- as.data.frame(objet[ , , , week_nb])  # Convertit l'objet stars en dataframe
+    colnames(env_dataframe)[4] = i
+    env = cbind(env, env_dataframe[,4])
+    new_columns = c(new_columns, i)
+    colnames(env[length(colnames(env))]) = eval(i)
+  }
+}
 
-
-## RUN 1.1) ----
-
-myBiomodModel.all_v1.1 <- BIOMOD_Modeling(
-  bm.format         = myData.best,                                 #a BIOMOD.formated.data or BIOMOD.formated.data.PA object returned by the BIOMOD_FormatingData function
-  bm.options        = myBiomodOption,
-  modeling.id       = as.character("SDM_2017to2020_eval2020_GAM-lite"), #a character corresponding to the name (ID) of the simulation set (a random number by default)
-  models            = c("GAM"),                                   #a vector containing model names to be computed, must be among GLM, GBM, GAM, CTA, ANN, SRE, FDA, MARS, RF, MAXENT.Phillips, MAXENT.Phillips.2
-  models.pa         = NULL,                                       #a list containing for each model a vector defining which pseudo-absence datasets are to be used, must be among colnames(bm.format@PA.table)
-  CV.strategy       = "random",                                   #a character corresponding to the cross-validation selection strategy, must be among random, kfold, block, strat, env or user.defined
-  CV.nb.rep         = 5,                                          #if strategy = 'random' or strategy = 'kfold', an integer corresponding to the number of repetitions to be done for calibration/validation splitting
-  CV.perc           = 0.7,                                        #if strategy = 'random', a numeric between 0 and 1 corresponding to the percentage of data used to calibrate the models (calibration/validation splitting)
-  CV.do.full.models = TRUE,                                       #a logical value defining whether models calibrated and evaluated over the whole dataset should be computed or not
-  weights           = NULL,                                       #a vector of numeric values corresponding to observation weights (one per observation, see Details)
-  metric.eval       = c("ROC", "TSS"),                            #"KAPPA", "TSS","ACCURACY", BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
-  var.import        = 5,                                          #an integer corresponding to the number of permutations to be done for each variable to estimate variable importance
-  scale.models      = FALSE,                                      #a logical value defining whether all models predictions should be scaled with a binomial GLM or not
-  nb.cpu            = 2,                                          #a integer value corresponding to the number of computing resources to be used to parallelize the single models computation
-  seed.val          = 42,                                         #an integer value corresponding to the new seed value to be set
-  do.progress       = TRUE                                        #a logical value defining whether the progress bar is to be rendered or not
-)
+colnames(env)[-c(1:4)] = new_columns
+env = rename(env, bathy = "elevation")
+env$bathy = as.numeric(env$bathy)
 
 
-## DATA 2.1) data 2.0 with {bathy,pp,CHL} ----
 
-env.best <- c( "bathy",
-               "pp",
-               "CHL" )
+#######################
+# All weeks combined
 
-myExpl.best <- stack( bathy.raster,
-                      pp.raster,
-                      CHL.raster )
+nb_weeks = 30
 
-myPA.best   <- BIOMOD_FormatingData( resp.var       = OPP_ENV_2020$SPECCODE,
-                                     expl.var       = myExpl.best,
-                                     resp.xy        = OPP_ENV_2020[,c("LONGITUDE", "LATITUDE")],
-                                     resp.name      = myRespName, 
-                                     PA.nb.rep      = 5, 
-                                     PA.nb.absences = 10000,   #should have about the same P/A ratio than in training data => NOT the case here
-                                     PA.strategy    = 'random',
-                                     filter.raster  = FALSE
-)
+bathy_week = as.data.frame( bathy )
+rm(bathy)
 
-myEval.best  <- get_species_data( myPA.best )
-names(myEval.best) <- c( myRespName,
-                         c( "x", "y" ),
-                         env.best,
-                         "PA1" 
-)
-PA.i <- is.na( myEval.best[ , myRespName ] )
-myEval.best[ PA.i, myRespName ] <- 0
+list = ls()
+nouveau_tableau <- do.call(rbind, replicate(n, mon_tableau, simplify = FALSE))
+env <- do.call(rbind, replicate(nb_weeks, bathy_week, simplify = F))
+new_columns = NULL
+for (i in (list)) {
+  objet <- get(i)  # Obtient l'objet en utilisant son nom
+  if (class(objet) == "stars") {  # Vérifie si l'objet est de la classe "stars"
+    env_dataframe <- as.data.frame(objet[ , , , 17:46])  # Convertit l'objet stars en dataframe
+    colnames(env_dataframe)[4] = i
+    env = cbind(env, env_dataframe[,4])
+    new_columns = c(new_columns, i)
+    colnames(env[length(colnames(env))]) = eval(i)
+  }
+}
 
-myData.best <- BIOMOD_FormatingData( resp.var      = myResp,
-                                     expl.var      = myExpl.best,
-                                     resp.xy       = myXY,
-                                     resp.name     = myRespName, 
-                                     eval.resp.var = myEval.opt[,myRespName],
-                                     eval.expl.var = myEval.opt[,env.best],
-                                     eval.resp.xy  = myEval.opt[,c("x","y")] )
+colnames(env)[-c(1:4)] = new_columns
+env = rename(env, bathy = "elevation")
+env$bathy = as.numeric(env$bathy)
 
-myData.best
+######################
+## set data for projection ----
 
-
-## RUN 2.1) ----
-
-myBiomodModel.opt_v2.1 <- BIOMOD_Modeling(
-  bm.format         = myData.best,                                 #a BIOMOD.formated.data or BIOMOD.formated.data.PA object returned by the BIOMOD_FormatingData function
-  bm.options        = myBiomodOption,
-  modeling.id       = as.character("SDM_2017to2020_evalOpt2020_GAM-lite"), #a character corresponding to the name (ID) of the simulation set (a random number by default)
-  models            = c("GAM"),                                   #a vector containing model names to be computed, must be among GLM, GBM, GAM, CTA, ANN, SRE, FDA, MARS, RF, MAXENT.Phillips, MAXENT.Phillips.2
-  models.pa         = NULL,                                       #a list containing for each model a vector defining which pseudo-absence datasets are to be used, must be among colnames(bm.format@PA.table)
-  CV.strategy       = "random",                                   #a character corresponding to the cross-validation selection strategy, must be among random, kfold, block, strat, env or user.defined
-  CV.nb.rep         = 5,                                          #if strategy = 'random' or strategy = 'kfold', an integer corresponding to the number of repetitions to be done for calibration/validation splitting
-  CV.perc           = 0.7,                                        #if strategy = 'random', a numeric between 0 and 1 corresponding to the percentage of data used to calibrate the models (calibration/validation splitting)
-  CV.do.full.models = TRUE,                                       #a logical value defining whether models calibrated and evaluated over the whole dataset should be computed or not
-  weights           = NULL,                                       #a vector of numeric values corresponding to observation weights (one per observation, see Details)
-  metric.eval       = c("ROC", "TSS"),                            #"KAPPA", "TSS","ACCURACY", BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
-  var.import        = 5,                                          #an integer corresponding to the number of permutations to be done for each variable to estimate variable importance
-  scale.models      = FALSE,                                      #a logical value defining whether all models predictions should be scaled with a binomial GLM or not
-  nb.cpu            = 2,                                          #a integer value corresponding to the number of computing resources to be used to parallelize the single models computation
-  seed.val          = 42,                                         #an integer value corresponding to the new seed value to be set
-  do.progress       = TRUE                                        #a logical value defining whether the progress bar is to be rendered or not
-)
-
-
-## Spatial projections ----
-
-## RUN 1.0) ----
-
-proj.model  <- myBiomodModel.all_v1.0 #_v1.0
-proj.name   <- "RUN_v1.0"
-proj.env    <- ENV8days2020_proj_all_8days_df[ , env.var ]
-proj.xy     <- ENV8days2020_proj_all_8days_df[, 1:2]
+proj.model  <- myBiomodModel #_v1.0
+proj.name   <- paste0('Proj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run)
+proj.env    <- env[ , env.var ]
+proj.xy     <- env[, 1:2]
 proj.chosen <- get_built_models( model.postproc,
                                  full.name = "RIWH_allData_allRun_GAM" )
+# Add the occurrences
 pres.i      <- OCC_ENV_2020$SPECCODE==1
 pres.xy     <- st_coordinates( OCC_ENV_2020$geometry[pres.i] ) %>% 
   as.data.frame()
@@ -509,7 +483,7 @@ proj.gg <- plot(
 )
 
 # get data & get rid of NA
-# !!! WARNING !!! there is ponly one element in the output list
+# !!! WARNING !!! there is only one element in the output list
 #                 because I specified with the option "models.chosen"
 #                 that I want only 1 model; if you request more, you 
 #                 will simply have a list with several elements
@@ -548,102 +522,20 @@ g.proj
 dev.off()
 
 
-## RUN 2.0) ----
-
-
-## RUN 1.1) ----
-
-proj.model <- myBiomodModel.all
-proj.name   <- "RUN_v1.1"
-proj.env    <- ENV8days2020_proj_all_25_df[ ,env.var ]
-proj.xy     <- ENV8days2020_proj_all_25_df[, 1:2]
-proj.chosen <- get_built_models( model.postproc,
-                                 full.name = "RIWH_allData_allRun_GAM" )
-pres.i      <- OCC_ENV_2020$SPECCODE==1
-pres.xy     <- st_coordinates( OCC_ENV_2020$geometry[pres.i] ) %>% 
-  as.data.frame()
-opp.xy      <- st_coordinates( OPP_ENV_2020$geometry ) %>%
-  as.data.frame()
-
-# run the projection  
-myBiomodProj.all_v1.1 <- BIOMOD_Projection(
-  bm.mod              = proj.model,  #a BIOMOD.models.out object returned by the BIOMOD_Modeling function
-  proj.name           = proj.name,   #a character corresponding to the name (ID) of the projection set (a new folder will be created within the simulation folder with this name)
-  new.env             = proj.env,    #a matrix, data.frame or SpatRaster object containing the new explanatory variables (in columns or layers, with names matching the variables names given to the BIOMOD_FormatingData function to build bm.mod) that will be used to project the species distribution model(s)
-  new.env.xy          = proj.xy,     #if new.env is a matrix or a data.frame, a 2-columns matrix or data.frame containing the corresponding X and Y coordinates that will be used to project the species distribution model(s)
-  models.chosen       = proj.chosen, #a vector containing model names to be kept, must be either all or a sub-selection of model names that can be obtained with the get_built_models function
-  metric.binary       = NULL,        #a vector containing evaluation metric names to be used to transform prediction values into binary values based on models evaluation scores obtained with the BIOMOD_Modeling function. Must be among all (same evaluation metrics than those of bm.mod) or ROC, TSS, KAPPA, ACCURACY, BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
-  metric.filter       = NULL,        #a vector containing evaluation metric names to be used to transform prediction values into filtered values based on models evaluation scores obtained with the BIOMOD_Modeling function. Must be among all (same evaluation metrics than those of bm.mod) or ROC, TSS, KAPPA, ACCURACY, BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
-  compress            = TRUE,        #a logical or a character value defining whether and how objects should be compressed when saved on hard drive. Must be either TRUE, FALSE, xz or gzip (see Details)
-  build.clamping.mask = TRUE,        #a logical value defining whether a clamping mask should be built and saved on hard drive or not (see Details)
-  nb.cpu              = 10,           #an integer value corresponding to the number of computing resources to be used to parallelize the single models computation
-  seed.val            = 42           #an integer value corresponding to the new seed value to be set
-)
-
-# get information from the plot
-proj.gg <- plot(
-  x           = myBiomodProj.all_v1.1, #a BIOMOD.projection.out object
-  #coord       = NULL,                  #a 2-columns data.frame containing the corresponding X and Y
-  plot.output = "list",                #(optional, default facet) a character determining the type of output: with plot.output = 'list' the function will return a list of plots (one plot per model) ; with 'facet' ; with plot.output = 'facet' the function will return a single plot with all asked projections as facet.
-  do.plot     = FALSE,                 #(optional, default TRUE) a boolean determining whether the plot should be displayed or just returned.
-  #std         = TRUE,                  #(optional, default TRUE) a boolean controlling the limits of the color scales. With std = TRUE color scales are displayed between 0 and 1 (or 1000). With std = FALSE color scales are displayed between 0 and the maximum value observed.
-  #scales      = "fixed",               #(optional, default fixed) a character determining whether x and y scales are shared among facet. Argument passed to facet_wrap. Possible values: 'fixed', 'free_x', 'free_y', 'free'.
-  #size        = 0.3,                   #(optional, default 0.75) a numeric determing the size of points on the plots and passed to geom_point.
-  #maxcell     = 5e+05,                 #maximum number of cells to plot. Argument transmitted to plot.
-)
-
-# get data & get rid of NA
-# !!! WARNING !!! there is ponly one element in the output list
-#                 because I specified with the option "models.chosen"
-#                 that I want only 1 model; if you request more, you 
-#                 will simply have a list with several elements
-proj.na   <- is.na( proj.gg[[1]]$data$pred )
-proj.data <- proj.gg[[1]]$data[!proj.na,]
-
-# make our own ggplot of the projection
-g.proj <- ggplot()                            +
-  geom_point( data = proj.data,
-              aes( x     = x,
-                   y     = y,
-                   color = pred*1e-3 ),
-              size = 0.8 )                    +
-  scale_color_viridis_c( option = "plasma",
-                         limits = c(0,1),
-                         na.value = "white" ) +
-  geom_point( data = pres.xy,
-              aes( x     = X,
-                   y     = Y ),
-              color = "white",
-              shape = 3,
-              size  = 3 )                   +
-  labs( x        = "Longitude",
-        y        = "Latitude",
-        subtitle = "Predicted probability of presence",
-        color    = "Prob.")
-
-#png( "Projection_v1.1.png", width = 1000, height = 800 )
-g.proj
-#dev.off()
-
-
-## RUN 2.1) ----
-
-
-
 
 ## XXXXXXXXXXXXXXXXXXXX ----
 ## --------------------   ENSEMBLE MODELS    --------------------
 
 
 myBiomodEM <- BIOMOD_EnsembleModeling(
-  bm.mod = myBiomodModel.all_v1.0,  #a BIOMOD.models.out object returned by the BIOMOD_Modeling function
+  bm.mod = myBiomodModel,  #a BIOMOD.models.out object returned by the BIOMOD_Modeling function
   models.chosen = "all",  #a vector containing model names to be kept, must be either all or a sub-selection of model names that can be obtained with the get_built_models function
   em.by = "all", #a character corresponding to the way kept models will be combined to build the ensemble models, must be among PA_dataset+repet, PA_dataset+algo, PA_dataset, algo, all
-  metric.select = c("ROC", "TSS"), # with metric.select.thresh to exclude single models "KAPPA", "TSS", "ROC"....
+  metric.select = cfg$Metrics_Eval, # with metric.select.thresh to exclude single models "KAPPA", "TSS", "ROC"....
   metric.select.thresh = c(0.7, 0.5), #A vector of numeric values corresponding to the minimum scores (one for each metric.select) below which single models will be excluded from the ensemble model building
   metric.select.table = NULL, #If metric.select = 'user.defined', a data.frame containing evaluation scores calculated for each single models and that will be compared to metric.select.thresh values 
   #to exclude some of them from the ensemble model building, with metric.select rownames, and models.chosen colnames
-  metric.eval = c("ROC", "TSS"), #"KAPPA", "TSS", 
+  metric.eval = cfg$Metrics_Eval, #"KAPPA", "TSS", 
   var.import = 5, #An integer corresponding to the number of permutations to be done for each variable to estimate variable importance
   #EMmmean = TRUE, #A logical value defining whether to compute the mean probabilities across predictions or not
   #EMmedian = F, #A logical value defining whether to compute the median probabilities across predictions or not
@@ -674,8 +566,7 @@ bm_PlotResponseCurves(bm.out = myBiomodEM,
 
 ### save models evaluation scores and variables importance on hard drive
 capture.output(myBiomodEM@models.evaluation@val,
-               file=file.path(myRespName, 
-                              paste(myRespName,"_Ensmodels_evaluation.csv", sep="")))
+               file= paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, 'EM_Eval_Mean.csv'))
 
 
 ### Calcul evaluation of prediction by months by year
@@ -708,17 +599,16 @@ ggplot(mean_predict_eval_SL_2017to2020,
 
 ##
 capture.output(predict_eval_SL_2020,
-               file=file.path(myRespName, 
-                              paste(myRespName,"_Ensmodels_prediction_evaluation.csv", sep="")))
+               file=paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, 'EM_Var_Imp.csv'))
 
 
 
 
-png(paste0(directory, "/EMEval_mean.png"), width = 1024, height = 768)
+png(paste0(directory, "/EM_Eval_mean.png"), width = 1024, height = 768)
 bm_PlotEvalMean(bm.out = myBiomodEM, group.by = 'algo')
 dev.off()
 
-png(paste0(directory, "/EMImp_var.png"))
+png(paste0(directory, "/EM_Var_Imp.png"))
 bm_PlotVarImpBoxplot(bm.out = myBiomodEM, group.by = c('expl.var', 'algo', 'algo'))
 dev.off()
 
@@ -728,3 +618,4 @@ bm_PlotResponseCurves(bm.out = myBiomodEM,
                       fixed.var = 'median', 
                       do.bivariate = F)         
 dev.off()
+

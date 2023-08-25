@@ -1,24 +1,30 @@
-# Loading corresponding data
+
+### Loading corresponding data
 initial_wd: '/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/'
-output_wd: 
-#Dataset
-#Defining objects
+output_wd: '~/Documents/SDM_SIMBA/Models/'
+
+###Dataset
+    #Defining objects
+MyRespName: 'NARW'
 S_data: 'Sightings'
 E_data: 'Environmental_Var'
 Tempstemp: '8days'         # 8days or Daily
 Type: 'Surveys'            # Opportunistic or Surveys
 Domain: 'St_Laurent'       # Global or St_Laurent
-Year: 
+Year:
   - '2019'
+  - '2017'
 
 Eval_Year: 
   - '2018'
-run: 'v0.001'
+run: 'v0.002'
 
-#Models
+
+
+    #Models
 Single_Models: 
   - "GAM"
-#  - "GBM"
+  - "GBM"
 #  - "RF"
 
 CV_strategy: "random"
@@ -33,7 +39,13 @@ Metrics_Eval:
 Seed_Val: 33
 
 
-
+  #Projection
+Proj_Year: 2018
 
 
 # Description
+
+
+
+
+
