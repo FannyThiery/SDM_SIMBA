@@ -10,27 +10,44 @@ S_data: 'Sightings'
 E_data: 'Environmental_Var'
 Tempstemp: '8days'         # 8days or Daily
 Type: 'Surveys'            # Opportunistic or Surveys
-Domain: 'St_Laurent'       # Global or St_Laurent
+Domain: 'Global'       # Global or St_Laurent
 Year:
-  - '2019'
-  - '2017'
+   - '2017'
+   - '2018'
+   - '2019'
+ 
 
+Eval_S_data: 'Sightings'
+Eval_E_data: 'Environmental_Var'
+Eval_Tempstemp: '8days'         # 8days or Daily
+Eval_Type: 'Surveys'            # Opportunistic or Surveys
+Eval_Domain: 'St_Laurent'
 Eval_Year: 
-  - '2018'
-run: 'v0.002'
+  - '2020'
 
 
+run: 'v0.001'
 
+
+Environmental Variables:
+  - "sst"
+  - "CHL"
+  - "pp"
+#  - "CDM_mean"
+#  - "BBP_mean"
+  - "PAR_mean"
+  - "bathy"
+              
     #Models
 Single_Models: 
   - "GAM"
-  - "GBM"
+#  - "GBM"
 #  - "RF"
 
 CV_strategy: "random"
 #must be among random, kfold, block, strat, env or user.defined
 
-CV_perc: 0.75
+CV_perc: 0.70
 
 Metrics_Eval: 
   - 'ROC'
@@ -40,11 +57,10 @@ Seed_Val: 33
 
 
   #Projection
-Proj_Year: 2018
+Proj_Year: 2020
 
 
-# Description
-
+#### Description
 
 
 

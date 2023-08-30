@@ -94,17 +94,17 @@ Read_Env = function( cfg ) {
 Read_EvalSightings = function( cfg ) {
   
   EvalS_filename <- paste0( cfg$S_data,    '_', 
-                            cfg$Tempstemp, '_', 
-                            cfg$Type,      '_', 
-                            cfg$Domain,    '_', 
+                            cfg$Eval_Tempstemp, '_', 
+                            cfg$Eval_Type,      '_', 
+                            cfg$Eval_Domain,    '_', 
                             cfg$Eval_Year, '.', 
                             'RDS'              )
   
   EvalS_filepath <- paste0( cfg$initial_wd, 
-                            cfg$S_data,    '/', 
-                            cfg$Tempstemp, '/', 
-                            cfg$Type,      '/', 
-                            cfg$Domain,    '/', 
+                            cfg$Eval_S_data,    '/', 
+                            cfg$Eval_Tempstemp, '/', 
+                            cfg$Eval_Type,      '/', 
+                            cfg$Eval_Domain,    '/', 
                             cfg$Eval_Year, '/', 
                             EvalS_filename     )
   
@@ -118,17 +118,17 @@ Read_EvalSightings = function( cfg ) {
 Read_EvalEnv = function( cfg ) {
   
   EvalE_filename <- paste0( 'Env',         '_',
-                            cfg$Tempstemp, '_', 
-                            cfg$Type,      '_', 
-                            cfg$Domain,    '_', 
+                            cfg$Eval_Tempstemp, '_', 
+                            cfg$Eval_Type,      '_', 
+                            cfg$Eval_Domain,    '_', 
                             cfg$Eval_Year, '.', 
                             'RDS'              )
   
   EvalE_filepath <- paste0( cfg$initial_wd, 
-                            cfg$E_data,    '/', 
-                            cfg$Tempstemp, '/', 
-                            cfg$Type,      '/', 
-                            cfg$Domain,    '/', 
+                            cfg$Eval_E_data,    '/', 
+                            cfg$Eval_Tempstemp, '/', 
+                            cfg$Eval_Type,      '/', 
+                            cfg$Eval_Domain,    '/', 
                             cfg$Eval_Year, '/', 
                             EvalE_filename    ) 
   
@@ -168,13 +168,7 @@ myResp <- Sightings$SPECCODE
 myXY <- st_coordinates( Env_var$geometry )
 
 # environmental variables
-env.var <- c( "sst",
-              "CHL",
-              "pp",
-              "CDM_mean",
-              "BBP_mean",
-              "PAR_mean",
-              "bathy" )
+env.var <- cfg$`Environmental Variables`
 
 myExpl  <- Env_var[ , env.var ]
 
@@ -220,7 +214,7 @@ myBiomodModel <- BIOMOD_Modeling(
   models            = cfg$Single_Models, #, "CTA", "GAM", "RF"),           #a vector containing model names to be computed, must be among GLM, GBM, GAM, CTA, ANN, SRE, FDA, MARS, RF, MAXENT.Phillips, MAXENT.Phillips.2
   models.pa         = NULL,                                       #a list containing for each model a vector defining which pseudo-absence datasets are to be used, must be among colnames(bm.format@PA.table)
   CV.strategy       = cfg$CV_strategy,                                   #a character corresponding to the cross-validation selection strategy, must be among random, kfold, block, strat, env or user.defined
-  CV.nb.rep         = 2,                                          #if strategy = 'random' or strategy = 'kfold', an integer corresponding to the number of repetitions to be done for calibration/validation splitting
+  CV.nb.rep         = 10,                                          #if strategy = 'random' or strategy = 'kfold', an integer corresponding to the number of repetitions to be done for calibration/validation splitting
   CV.perc           = cfg$CV_perc,                                        #if strategy = 'random', a numeric between 0 and 1 corresponding to the percentage of data used to calibrate the models (calibration/validation splitting)
   CV.do.full.models = TRUE,                                       #a logical value defining whether models calibrated and evaluated over the whole dataset should be computed or not
   #CV.k              = 3,                                          #if strategy = 'kfold' or strategy = 'strat' or strategy = 'env', an integer corresponding to the number of partitions
@@ -236,7 +230,6 @@ myBiomodModel <- BIOMOD_Modeling(
   nb.cpu            = 10,                                          #a integer value corresponding to the number of computing resources to be used to parallelize the single models computation
   seed.val          = 42,                                         #an integer value corresponding to the new seed value to be set
   do.progress       = TRUE                                        #a logical value defining whether the progress bar is to be rendered or not
-  #modeling.id       = paste('RIWH',"FirstModeling",sep="")
 )
 
 
@@ -265,47 +258,22 @@ g.3 <- bm_PlotEvalMean( bm.out      = myBiomodModel,
                         group.by    = "algo",
                         do.plot     = FALSE )
 
+
 # create data.frame for plotting
-g.data_CTA          <- rbind( g.1$tab[1,], g.2$tab[1,], g.3$tab[1,] )
-g.data_GAM          <- rbind( g.1$tab[2,], g.2$tab[2,], g.3$tab[2,] )
-g.data_GBM          <- rbind( g.1$tab[3,], g.2$tab[3,], g.3$tab[3,] )
-g.data_RF           <- rbind( g.1$tab[4,], g.2$tab[4,], g.3$tab[4,] )
+g.data_Eval          <- rbind( g.1$tab[1,], g.2$tab[1,], g.3$tab[1,] )
 
-g.data_CTA[,"name"] <- c( "Calib.",
-                      "Valid.",
-                      "Eval."  )
-g.data_CTA[,"low1"] <- g.data_CTA[,"mean1"] - g.data_CTA[,"sd1"]
-g.data_CTA[,"up1"]  <- g.data_CTA[,"mean1"] + g.data_CTA[,"sd1"]
-g.data_CTA[,"low2"] <- g.data_CTA[,"mean2"] - g.data_CTA[,"sd2"]
-g.data_CTA[,"up2"]  <- g.data_CTA[,"mean2"] + g.data_CTA[,"sd2"]
-
-
-g.data_GAM[,"name"] <- c( "Calib.",
+g.data_Eval[,"name"] <- c( "Calib.",
                           "Valid.",
                           "Eval."  )
-g.data_GAM[,"low1"] <- g.data_GAM[,"mean1"] - g.data_GAM[,"sd1"]
-g.data_GAM[,"up1"]  <- g.data_GAM[,"mean1"] + g.data_GAM[,"sd1"]
-g.data_GAM[,"low2"] <- g.data_GAM[,"mean2"] - g.data_GAM[,"sd2"]
-g.data_GAM[,"up2"]  <- g.data_GAM[,"mean2"] + g.data_GAM[,"sd2"]
+g.data_Eval[,"low1"] <- g.data_Eval[,"mean1"] - g.data_Eval[,"sd1"]
+g.data_Eval[,"up1"]  <- g.data_Eval[,"mean1"] + g.data_Eval[,"sd1"]
+g.data_Eval[,"low2"] <- g.data_Eval[,"mean2"] - g.data_Eval[,"sd2"]
+g.data_Eval[,"up2"]  <- g.data_Eval[,"mean2"] + g.data_Eval[,"sd2"]
 
-g.data_GBM[,"name"] <- c( "Calib.",
-                          "Valid.",
-                          "Eval."  )
-g.data_GBM[,"low1"] <- g.data_GBM[,"mean1"] - g.data_GBM[,"sd1"]
-g.data_GBM[,"up1"]  <- g.data_GBM[,"mean1"] + g.data_GBM[,"sd1"]
-g.data_GBM[,"low2"] <- g.data_GBM[,"mean2"] - g.data_GBM[,"sd2"]
-g.data_GBM[,"up2"]  <- g.data_GBM[,"mean2"] + g.data_GBM[,"sd2"]
 
-g.data_RF[,"name"] <- c( "Calib.",
-                          "Valid.",
-                          "Eval."  )
-g.data_RF[,"low1"] <- g.data_RF[,"mean1"] - g.data_RF[,"sd1"]
-g.data_RF[,"up1"]  <- g.data_RF[,"mean1"] + g.data_RF[,"sd1"]
-g.data_RF[,"low2"] <- g.data_RF[,"mean2"] - g.data_RF[,"sd2"]
-g.data_RF[,"up2"]  <- g.data_RF[,"mean2"] + g.data_RF[,"sd2"]
 
 # ggplot2 graphic
-g.eval <- ggplot( data = g.data_RF,
+g.eval <- ggplot( data = g.data_Eval,
                   aes( x      = mean1,
                        y      = mean2,
                        colour = name) )   +
@@ -317,56 +285,64 @@ g.eval <- ggplot( data = g.data_RF,
         y = "TSS",
         subtitle = "Evaluation metrics" ) +
   xlim( 0, 1 )                            +
-  ylim( 0, 1 )                         
+  ylim( 0, 1 )                            +
+  theme(axis.text    = element_text ( size = 14 ),
+        axis.title   = element_text ( size = 16, face = "bold" ),
+        legend.title = element_text ( size = 14, face = "bold" ),
+        legend.text  = element_text ( size = 12) )
 
-png( "Eval_mean.png", width = 1500, height = 1000 )
+
+png( paste0("Eval_mean", "_", cfg$Single_Models ,".png"), width = 1500, height = 1000 )
 g.eval
 dev.off()
 
 # save evaluation scores on hard drive
 capture.output( myBiomodModel@models.evaluation@val,
-                file = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, 'Eval_mean.csv'))
-
+                file = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, '.', 'Eval_mean', '_', cfg$Single_Models, '.csv'))
 
 
 
 ## Importance of variables ----
 
 # extract values for each variable's importance
-g.data <- bm_PlotVarImpBoxplot( bm.out   = myBiomodModel,
+g.data_Var <- bm_PlotVarImpBoxplot( bm.out   = myBiomodModel,
                                 group.by = c('expl.var', 'algo', 'algo'), #a 3-length vector containing the way kept models will be represented, must be among full.name, PA, run, algo, expl.var (if bm.out is a BIOMOD.models.out object), or full.name, merged.by.PA, merged.by.run, merged.by.algo, expl.var (if bm.out is a BIOMOD.ensemble.models.out object)
                                 do.plot  = FALSE                          #a logical value defining whether the plot is to be rendered or not
 )
 
 # ggplot2 graphic
-g.VarImp <- ggplot( data = g.data$tab,
+g.VarImp <- ggplot( data = g.data_Var$tab,
                     aes( x = reorder( expl.var, var.imp ),
                          y = var.imp * 100 ) ) +
   geom_boxplot( colour = "firebrick" )         +
   labs( x        = "Explanatory variables",
         y        = "Importance (%)",
-        subtitle = "Variable importance" )
+        subtitle = "Variable importance" )     +
+  theme(axis.text    = element_text ( size = 14 ),
+        axis.title   = element_text ( size = 16, face = "bold" ),
+        legend.title = element_text ( size = 14, face = "bold" ),
+        legend.text  = element_text ( size = 12) )
 
-png( "Var_Imp.png", width = 1500, height = 1000 )
-g.VarImp 
+png( paste0("Eval_mean", "_", cfg$Single_Models ,".png"), width = 1500, height = 1000 )
+g.VarImp
 dev.off()
 
 # save variable importance scores on hard drive
-capture.output( g.data$tab,
-                file = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, 'Var_Imp.csv'))
+capture.output( g.data_Var$tab,
+                file = paste0(cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, '.', 'Var_Imp', '_', cfg$Single_Models, '.csv'))
 
 
 
 ## --- Represent response curves 
 
-#png( "Resp_curv.png", width = 1000, height = 800 )
+png( "Resp_curv.png", width = 1000, height = 800 )
 bm_PlotResponseCurves( bm.out        = myBiomodModel, 
-                       models.chosen = get_built_models( model.postproc,
-                                                         full.name = "RIWH_allData_allRun_GAM" ), #a vector containing model names to be kept, must be either all or a sub-selection of model names that can be obtained with the get_built_models function
+                       models.chosen = get_built_models( myBiomodModel,
+                                                         full.name = "NARW_allData_allRun_RF" ), #a vector containing model names to be kept, must be either all or a sub-selection of model names that can be obtained with the get_built_models function
                        fixed.var     = 'median',                                                  #a character corresponding to the statistic to be used to fix as constant the remaining variables other than the one used to predict response, must be either mean, median, min, max
                        do.bivariate  = FALSE,                                                     #a logical value defining whether the response curves are to be represented in 3 dimensions (meaning 2 explanatory variables at a time) or not (meaning only 1)
                        do.plot       = TRUE )
-#dev.off()
+dev.off()
 
 
 ###############---------- 
@@ -392,7 +368,7 @@ env <- bathy_week
 new_columns = NULL
 for (i in (list)) {
   objet <- get(i)  # Obtient l'objet en utilisant son nom
-  if (class(objet) == "stars") {  # Vérifie si l'objet est de la classe "stars"
+  if (class(objet)[1] == "stars") {  # Vérifie si l'objet est de la classe "stars"
     env_dataframe <- as.data.frame(objet[ , , , week_nb])  # Convertit l'objet stars en dataframe
     colnames(env_dataframe)[4] = i
     env = cbind(env, env_dataframe[,4])
@@ -416,12 +392,11 @@ bathy_week = as.data.frame( bathy )
 rm(bathy)
 
 list = ls()
-nouveau_tableau <- do.call(rbind, replicate(n, mon_tableau, simplify = FALSE))
 env <- do.call(rbind, replicate(nb_weeks, bathy_week, simplify = F))
 new_columns = NULL
 for (i in (list)) {
   objet <- get(i)  # Obtient l'objet en utilisant son nom
-  if (class(objet) == "stars") {  # Vérifie si l'objet est de la classe "stars"
+  if (class(objet)[1] == "stars") {  # Vérifie si l'objet est de la classe "stars"
     env_dataframe <- as.data.frame(objet[ , , , 17:46])  # Convertit l'objet stars en dataframe
     colnames(env_dataframe)[4] = i
     env = cbind(env, env_dataframe[,4])
@@ -441,27 +416,27 @@ proj.model  <- myBiomodModel #_v1.0
 proj.name   <- paste0('Proj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run)
 proj.env    <- env[ , env.var ]
 proj.xy     <- env[, 1:2]
-proj.chosen <- get_built_models( model.postproc,
+proj.chosen <- get_built_models( myBiomodModel,
                                  full.name = "RIWH_allData_allRun_GAM" )
 # Add the occurrences
-pres.i      <- OCC_ENV_2020$SPECCODE==1
-pres.xy     <- st_coordinates( OCC_ENV_2020$geometry[pres.i] ) %>% 
+pres.i      <- Eval_Sightings$SPECCODE==1
+pres.xy     <- st_coordinates( Eval_Sightings$geometry[pres.i] ) %>% 
   as.data.frame()
-opp.xy     <- st_coordinates( OPP_ENV_2020$geometry ) %>% 
-  as.data.frame()
+#opp.xy     <- st_coordinates( Eval_Sightings$geometry ) %>% 
+#  as.data.frame()
 
-pres.xy_SL = pres.xy[pres.xy$X < -60 & pres.xy$Y > 45.5, ] 
-opp.xy_SL = opp.xy[opp.xy$X < -60 & opp.xy$Y > 45.5, ] 
+#pres.xy_SL = pres.xy[pres.xy$X < -60 & pres.xy$Y > 45.5, ] 
+#opp.xy_SL = opp.xy[opp.xy$X < -60 & opp.xy$Y > 45.5, ] 
 
 
 
 # run the projection  
-myBiomodProj.all_v1.0 <- BIOMOD_Projection(
+myBiomodProj <- BIOMOD_Projection(
   bm.mod              = proj.model,  #a BIOMOD.models.out object returned by the BIOMOD_Modeling function
   proj.name           = proj.name,   #a character corresponding to the name (ID) of the projection set (a new folder will be created within the simulation folder with this name)
   new.env             = proj.env,    #a matrix, data.frame or SpatRaster object containing the new explanatory variables (in columns or layers, with names matching the variables names given to the BIOMOD_FormatingData function to build bm.mod) that will be used to project the species distribution model(s)
   new.env.xy          = proj.xy,     #if new.env is a matrix or a data.frame, a 2-columns matrix or data.frame containing the corresponding X and Y coordinates that will be used to project the species distribution model(s)
-  models.chosen       = proj.chosen, #a vector containing model names to be kept, must be either all or a sub-selection of model names that can be obtained with the get_built_models function
+  models.chosen       = 'all', #a vector containing model names to be kept, must be either all or a sub-selection of model names that can be obtained with the get_built_models function
   metric.binary       = NULL,        #a vector containing evaluation metric names to be used to transform prediction values into binary values based on models evaluation scores obtained with the BIOMOD_Modeling function. Must be among all (same evaluation metrics than those of bm.mod) or ROC, TSS, KAPPA, ACCURACY, BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
   metric.filter       = NULL,        #a vector containing evaluation metric names to be used to transform prediction values into filtered values based on models evaluation scores obtained with the BIOMOD_Modeling function. Must be among all (same evaluation metrics than those of bm.mod) or ROC, TSS, KAPPA, ACCURACY, BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
   compress            = TRUE,        #a logical or a character value defining whether and how objects should be compressed when saved on hard drive. Must be either TRUE, FALSE, xz or gzip (see Details)
@@ -472,7 +447,7 @@ myBiomodProj.all_v1.0 <- BIOMOD_Projection(
 
 # get information from the plot
 proj.gg <- plot(
-  x           = myBiomodProj.all_v1.0, #a BIOMOD.projection.out object
+  x           = myBiomodProj, #a BIOMOD.projection.out object
   #coord       = NULL,                  #a 2-columns data.frame containing the corresponding X and Y
   plot.output = "list",                #(optional, default facet) a character determining the type of output: with plot.output = 'list' the function will return a list of plots (one plot per model) ; with 'facet' ; with plot.output = 'facet' the function will return a single plot with all asked projections as facet.
   do.plot     = FALSE,                 #(optional, default TRUE) a boolean determining whether the plot should be displayed or just returned.
@@ -517,7 +492,7 @@ g.proj <- ggplot()                            +
         subtitle = "Predicted probability of presence",
         color    = "Prob.")
 
-png( "Projection_v1.0.png", width = 1500, height = 1000 )
+png( paste0("Proj", "_", cfg$Single_Models, "_", cfg$Proj_Year, ".png"), width = 1500, height = 1000 )
 g.proj
 dev.off()
 
@@ -537,13 +512,6 @@ myBiomodEM <- BIOMOD_EnsembleModeling(
   #to exclude some of them from the ensemble model building, with metric.select rownames, and models.chosen colnames
   metric.eval = cfg$Metrics_Eval, #"KAPPA", "TSS", 
   var.import = 5, #An integer corresponding to the number of permutations to be done for each variable to estimate variable importance
-  #EMmmean = TRUE, #A logical value defining whether to compute the mean probabilities across predictions or not
-  #EMmedian = F, #A logical value defining whether to compute the median probabilities across predictions or not
-  #EMcv = T, #A logical value defining whether to compute the coeff of variation across predictions or not
-  #EMci = T, #A logical value defining whether to compute the confidence interval around the prob.mean ensemble model or not
-  #EMci.alpha = 0.05, #A numeric value corresponding to the significance level to estimate confidence interval
-  #EMca = TRUE, #A logical value defining whether to compute the committee averaging across predictions or not
-  #EMwmean = TRUE, #A logical value defining whether to compute the weighted sum of probabilities across predictions or not
   EMwmean.decay = "proportional", #A value defining the relative importance of the weights (if prob.mean.weight = TRUE). 
   #A high value will strongly discriminate good models from the bad ones (see Details), 
   #while proportional will attribute weights proportionally to the models evaluation scores
