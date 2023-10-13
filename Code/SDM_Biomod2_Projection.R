@@ -14,11 +14,26 @@ library(doParallel)
 library(stars)
 
 
-sst_path = paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/SST/SST_L4_2020_8days.nc")
-pp_path = paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/PP/PP_L3_2020_8days.nc")
-CHL_path = paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/CHL-PCA_L4/CHL-PCA_L4_2020_8days.nc")
-PAR_path = paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/_PAR_/_PAR__PAR__L3_2020_8days.nc")
-Bathy_path = paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/Bathymetry/REGRIDDED1km_gebco_2023_n54.0_s37.0_w-74.0_e-45.0.nc")
+###Text commands
+
+#Paths variables
+sst_path   <- paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/8_DAYS/SST_L4_2020_8days_15.nc")
+
+pp_path    <- paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/8_DAYS/PP_L3_2020_8days_15.nc")
+
+CHL_path   <- paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/8_DAYS/CHL-PCA_L4_2020_8days_15.nc")
+
+PAR_path   <- paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/8_DAYS_/_PAR__PAR__L3_2020_8days_15.nc")
+
+Bathy_path <- paste0("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/Bathymetry/REGRIDDED1km_gebco_2023_n54.0_s37.0_w-74.0_e-45.0.nc")
+
+
+# Path model
+Model_path <- paste0("/home/thieryf/Documents/SDM_SIMBA/Models/8days/St_Laurent/2017to2020.2020/v1.001/NARW/NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.out")
+
+
+#Date of the projection
+date_proj = paste0("2020-03-25")
 
 
 
@@ -67,16 +82,10 @@ st_crs(bathy)=BathyCRS
 
 
 
-
-
 ##############---------
 ##        Load Model
 #############----------
 
-cfg = read_yaml('~/Documents/SDM_SIMBA/Code/SDM_Biomod2_Optim.yml')
-
-
-Model_path = paste0("/home/thieryf/Documents/SDM_SIMBA/Models/8days/St_Laurent/2017to2020.2020/v1.001/NARW/NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.out")
 myBiomodEM = load(Model_path)
 
 
@@ -85,65 +94,28 @@ myBiomodEM = load(Model_path)
 ##        Spatial Projections
 ##############---------
 
-# Load data
-Proj_path = paste0("/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Environmental_Var/stars/Proj/8days/St_Laurent/", cfg$Proj_Year, '/', "proj_8days_St_Laurent_", cfg$Proj_Year, ".RData")
-proj_Env = load(Proj_path)
+
+###### Merge stars VAR
+ENV8days2020 = c(SST8days2020, PP8days2020, PAR8days2020)
+
+###### Create dataframe from the stars objects
+ENV8days2020_proj_8days = (ENV8days2020[ ,400:1700 , 350:1000, 17:40]) #crops the SL
+ENV8days2020_proj_8days_df = as.data.frame(ENV8days2020_proj_8days)    #makes a dataframe 
+
+Bathy_proj = Bathy[, 400:1700 , 350:1000]                              #crops the SL for the bathy
+Bathy_proj_df = as.data.frame(Bathy_proj)                              #makes a dataframe 
+
+CHL8days2020_proj_8days = (CHL8days2020[ ,400:1700 , 350:1000, 17:40]) #crops the SL for the bathy
+CHL8days2020_proj_8days_df = as.data.frame(CHL8days2020_proj_8days)    #makes a dataframe
+
+####### Combine all ENV variables
+ENV8days2020_proj_all_8days= cbind(ENV8days2020_proj_8days_df, Bathy_proj_8days_df$elevation, CHL8days2020_proj_8days_df$CHL.PCA_mean)                               #combines ENV with bathy and CHL
 
 
-###########################
-# One week in particular
+ENV8days2020_proj_all_8days_df = rename(ENV8days2020_proj_all_8days, bathy = 'Bathy_proj_8days_df$elevation', CHL = 'CHL8days2020_proj_8days_df$CHL.PCA_mean')                       #renames according to the model
 
-week_nb = 25
-
-# semaine 25
-bathy_week = as.data.frame( bathy )
-rm(bathy)
-
-list = ls()
-env <- bathy_week
-new_columns = NULL
-for (i in (list)) {
-  objet <- get(i)  # Obtient l'objet en utilisant son nom
-  if (class(objet)[1] == "stars") {  # Vérifie si l'objet est de la classe "stars"
-    env_dataframe <- as.data.frame(objet[ , 400:1300 , 400:1000 , week_nb ])  # Convertit l'objet stars en dataframe
-    colnames(env_dataframe)[4] = i
-    env = cbind(env, env_dataframe[,4])
-    new_columns = c(new_columns, i)
-    colnames(env[length(colnames(env))]) = eval(i)
-  }
-}
-
-colnames(env)[-c(1:4)] = new_columns
-env = rename(env, bathy = "elevation")
-env$bathy = as.numeric(env$bathy)
-
-
-
-# #######################
-# # All weeks combined
-# 
-# nb_weeks = 30
-# 
-# bathy_week = as.data.frame( bathy )
-# rm(bathy)
-# 
-# list = ls()
-# env <- do.call(rbind, replicate(nb_weeks, bathy_week, simplify = F))
-# new_columns = NULL
-# for (i in (list)) {
-#   objet <- get(i)  # Obtient l'objet en utilisant son nom
-#   if (class(objet)[1] == "stars") {  # Vérifie si l'objet est de la classe "stars"
-#     env_dataframe <- as.data.frame(objet[ , , , 17:46])  # Convertit l'objet stars en dataframe
-#     colnames(env_dataframe)[4] = i
-#     env = cbind(env, env_dataframe[,4])
-#     new_columns = c(new_columns, i)
-#     colnames(env[length(colnames(env))]) = eval(i)
-#   }
-# }
-# 
-# colnames(env)[-c(1:4)] = new_columns
-# env = rename(env, bathy = "elevation")
-# env$bathy = as.numeric(env$bathy)
+ENV8days2020_proj_all_8days_df$bathy = as.numeric(ENV8days2020_proj_all_8days_df$bathy)
+                                                                       #makes bathy variables as numeric
 
 
 
@@ -151,9 +123,9 @@ env$bathy = as.numeric(env$bathy)
 ## set data for projection ----
 
 EMproj.model  <- NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.out#_v1.0
-EMproj.name   <- paste0('Proj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run)
-EMproj.env    <- env
-EMproj.xy     <- env[, 1:2]
+EMproj.name   <- paste0('Proj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, cfg$date_proj)
+EMproj.env    <- ENV8days2020_proj_all_8days_df[, 4:8]
+EMproj.xy     <- ENV8days2020_proj_all_8days_df[, 1:2]
 EMproj.chosen <- get_built_models( NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.out,
                                    full.name = "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo" ) 
 
@@ -182,20 +154,6 @@ proj.gg <- plot(
   #size        = 0.3,                   #(optional, default 0.75) a numeric determing the size of points on the plots and passed to geom_point.
   #maxcell     = 5e+05,                 #maximum number of cells to plot. Argument transmitted to plot.
 )
-
-
-## --- save proj
-
-#png( paste0( EMproj.name, '.', myBiomodEMProj@models.projected ), width = 1000, height = 800 )
-proj.gg
-#dev.off()
-
-
-# get data & get rid of NA
-# !!! WARNING !!! there is only one element in the output list
-#                 because I specified with the option "models.chosen"
-#                 that I want only 1 model; if you request more, you 
-#                 will simply have a list with several elements
 
 
 proj.na   <- is.na( proj.gg$data$pred )

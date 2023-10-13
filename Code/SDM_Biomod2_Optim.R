@@ -210,8 +210,6 @@ myBiomodOption <- bm_DefaultModelingOptions()
 ## --------------------   SINGLE MODELLING   -------------------- 
 
 
-## RUN 1.0) ALL Train. & 2020 Eval. ----
-
 myBiomodModel <- BIOMOD_Modeling(
   bm.format         = myData.all,                                 #a BIOMOD.formated.data or BIOMOD.formated.data.PA object returned by the BIOMOD_FormatingData function
   bm.options        = myBiomodOption,
@@ -236,6 +234,11 @@ myBiomodModel <- BIOMOD_Modeling(
   seed.val          = 42,                                         #an integer value corresponding to the new seed value to be set
   do.progress       = TRUE                                        #a logical value defining whether the progress bar is to be rendered or not
 )
+
+
+
+
+
 
 
 
@@ -307,6 +310,10 @@ capture.output( myBiomodModel@models.evaluation@val,
 
 
 
+
+
+
+
 ## Importance of variables ----
 
 # extract values for each variable's importance
@@ -338,6 +345,10 @@ capture.output( g.data_Var$tab,
 
 
 
+
+
+
+
 ## --- Represent response curves 
 
 png( "Resp_curv.png", width = 1000, height = 800 )
@@ -350,95 +361,78 @@ bm_PlotResponseCurves( bm.out        = myBiomodModel,
 dev.off()
 
 
+
+
+
+
+
+
+
 ###############---------- 
 ##        Spatial Projections
 ##############---------
 
 # Load data
-Proj_path = paste0("/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Environmental_Var/stars/Proj/8days/St_Laurent/", cfg$Proj_Year, '/', "proj_8days_St_Laurent_", cfg$Proj_Year, ".RData")
-proj_Env = load(Proj_path)
+#Ouverture des rasters avec le package stars
+SST8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/SST/SST_L4_2020_8days.nc",
+                         var = "sst", make_units = TRUE, make_time = TRUE, proxy = F)
 
 
-###########################
-# One week in particular
-
-week_nb = 25
-
-# semaine week_nb
-bathy_week = as.data.frame( bathy )
-rm(bathy)
-
-list = ls()
-env <- bathy_week
-new_columns = NULL
-for (i in (list)) {
-  objet <- get(i)  # Obtient l'objet en utilisant son nom
-  if (class(objet)[1] == "stars") {  # Vérifie si l'objet est de la classe "stars"
-    env_dataframe <- as.data.frame(objet[ , , , week_nb])  # Convertit l'objet stars en dataframe
-    colnames(env_dataframe)[4] = i
-    env = cbind(env, env_dataframe[,4])
-    new_columns = c(new_columns, i)
-    colnames(env[length(colnames(env))]) = eval(i)
-  }
-}
-
-colnames(env)[-c(1:4)] = new_columns
-env = rename(env, bathy = "elevation")
-env$bathy = as.numeric(env$bathy)
+PP8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/PP/PP_L3_2020_8days.nc",
+                        var = c("pp"), make_units = TRUE, make_time = TRUE, proxy = F)
 
 
+PAR8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/_PAR_/_PAR__PAR__L3_2020_8days.nc",
+                         var = "PAR_mean", make_units = TRUE, make_time = TRUE, proxy = F)
+
+
+CHL8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/CHL-PCA/CHL-PCA_L3_2020_8days.nc",
+                         var = "CHL-PCA_mean", make_units = TRUE, make_time = TRUE, proxy = F)
+
+
+Bathy <- read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/Bathymetry/REGRIDDED1km_gebco_2023_n54.0_s37.0_w-74.0_e-45.0.nc", var = 'elevation', make_units = TRUE, make_time = TRUE, proxy = FALSE)
+
+BathyCRS=st_crs(SST8days2020)
+st_crs(Bathy)=BathyCRS
 
 #######################
-# All weeks of the year combined
+#Set dataframe for the proj
 
-nb_weeks = 24
+nb_weeks = 24  #the number of week(s) you want to project on
 
-bathy_week = as.data.frame( bathy )
-rm(bathy)
+#for the Gulf of SL
 
-list = ls()
-env <- do.call(rbind, replicate(nb_weeks, bathy_week, simplify = F))
-new_columns = NULL
-for (i in (list)) {
-  objet <- get(i)  # Obtient l'objet en utilisant son nom
-  if (class(objet)[1] == "stars") {  # Vérifie si l'objet est de la classe "stars"
-    env_dataframe <- as.data.frame(objet[ , , , 17:40])  # Convertit l'objet stars en dataframe
-    colnames(env_dataframe)[4] = i
-    env = cbind(env, env_dataframe[,4])
-    new_columns = c(new_columns, i)
-    colnames(env[length(colnames(env))]) = eval(i)
-  }
-}
+ENV8days2020_proj_8days = (ENV8days2020[ ,400:1700 , 350:1000, 17:40])     #crops the SL with the rights week(s)
+ENV8days2020_proj_8days_df = as.data.frame(ENV8days2020_proj_8days)        #makes a dataframe 
 
-colnames(env)[-c(1:4)] = new_columns
-env = rename(env, bathy = "elevation")
-env$bathy = as.numeric(env$bathy)
+Bathy_proj = Bathy[, 400:1700 , 350:1000]
+Bathy_proj_df = as.data.frame(Bathy_proj)
+Bathy_proj_8days = replicate(nb_weeks, Bathy_proj_df, simplify = F)        #crops the SL with the rights week(s)
+Bathy_proj_8days_df = as.data.frame(do.call(rbind, Bathy_proj_8days))      #makes a dataframe
+
+CHL8days2020_proj_8days = (CHL8days2020[ ,400:1700 , 350:1000, 17:40])     #crops the SL with the rights week(s)
+CHL8days2020_proj_8days_df = as.data.frame(CHL8days2020_proj_8days)        #makes a dataframe
+
+ENV8days2020_proj_all_8days= cbind(ENV8days2020_proj_8days_df, Bathy_proj_8days_df$elevation, CHL8days2020_proj_8days_df$CHL.PCA_mean)                                    #makes a dataframe
+ENV8days2020_proj_all_8days_df = rename(ENV8days2020_proj_all_8days, bathy = 'Bathy_proj_8days_df$elevation', CHL = 'CHL8days2020_proj_8days_df$CHL.PCA_mean')
+ENV8days2020_proj_all_8days_df$bathy = as.numeric(ENV8days2020_proj_all_8days_df$bathy)
+
+
 
 ######################
 ## set data for projection ----
 
 proj.model  <- myBiomodModel #_v1.0
-proj.name   <- paste0('Proj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, 'GBM')
+proj.name   <- paste0('Proj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, 'GAM', '.' ,'20to31')              # don't forget to change the name according to the model
 proj.env    <- ENV8days2020_proj_all_8days_df[ , env.var ]
 proj.xy     <- ENV8days2020_proj_all_8days_df[, 1:2]
 proj.chosen <- get_built_models( myBiomodModel,
-                                 full.name = "NARW_allData_allRun_GBM" )
-# Add the occurrences
-pres.i      <- which(as.character(Eval_Sightings$Date8days) == "2020-07-11" & Eval_Sightings$SPECCODE == 1)
-
-Eval_Sightings = st_as_sf(Eval_Sightings, coords = c('Long', 'Lat'), crs = 4326)
-pres.xy     <- st_coordinates( Eval_Sightings$geometry[pres.i] ) %>% 
-  as.data.frame()
-#opp.xy     <- st_coordinates( Eval_Sightings$geometry ) %>% 
-#  as.data.frame()
-
-pres.xy_SL = pres.xy[ pres.xy$Y > 45.5, ] 
-#opp.xy_SL = opp.xy[opp.xy$X < -60 & opp.xy$Y > 45.5, ] 
+                                 full.name = "NARW_allData_allRun_GAM" )   # don't forget to change the name according to the model
 
 
 
 # run the projection  
-myBiomodProj_GBM <- BIOMOD_Projection(
+myBiomodProj_GAM_proj <- BIOMOD_Projection(
   bm.mod              = proj.model,  #a BIOMOD.models.out object returned by the BIOMOD_Modeling function
   proj.name           = proj.name,   #a character corresponding to the name (ID) of the projection set (a new folder will be created within the simulation folder with this name)
   new.env             = proj.env,    #a matrix, data.frame or SpatRaster object containing the new explanatory variables (in columns or layers, with names matching the variables names given to the BIOMOD_FormatingData function to build bm.mod) that will be used to project the species distribution model(s)
@@ -453,10 +447,12 @@ myBiomodProj_GBM <- BIOMOD_Projection(
 )
 
 
+
+###############################
 # get information from the plot
 proj.gg <- plot(
-  x           = myBiomodProj_GAM, #a BIOMOD.projection.out object
-  coord       = proj.xy,                  #a 2-columns data.frame containing the corresponding X and Y
+  x           = myBiomodProj_GAM_proj, #a BIOMOD.projection.out object
+  #coord       = NULL,                  #a 2-columns data.frame containing the corresponding X and Y
   plot.output = "list",                #(optional, default facet) a character determining the type of output: with plot.output = 'list' the function will return a list of plots (one plot per model) ; with 'facet' ; with plot.output = 'facet' the function will return a single plot with all asked projections as facet.
   do.plot     = FALSE,                 #(optional, default TRUE) a boolean determining whether the plot should be displayed or just returned.
   #std         = TRUE,                  #(optional, default TRUE) a boolean controlling the limits of the color scales. With std = TRUE color scales are displayed between 0 and 1 (or 1000). With std = FALSE color scales are displayed between 0 and the maximum value observed.
@@ -465,45 +461,178 @@ proj.gg <- plot(
   #maxcell     = 5e+05,                 #maximum number of cells to plot. Argument transmitted to plot.
 )
 
-# get data & get rid of NA
-# !!! WARNING !!! there is only one element in the output list
-#                 because I specified with the option "models.chosen"
-#                 that I want only 1 model; if you request more, you 
-#                 will simply have a list with several elements
-proj.na   <- is.na( proj.gg[[1]]$data$pred )
-proj.data <- proj.gg[[1]]$data[!proj.na,]
+
+n = 1  # gives the model you want to project with
+
+proj.na   <- is.na( proj.gg[[n]]$data$pred )
+proj.data <- proj.gg[[n]]$data[!proj.na,]
+
+
+#give all 8days periods of the according weeks of projection to select the right Sightings to add to the plot
+date8days = paste0(c("2020-05-08", "2020-05-16", "2020-05-24" ,"2020-06-01", "2020-06-09", "2020-06-17", "2020-06-25", "2002-07-03", "2020-07-11", "2020-07-19", "2020-07-27", "2020-08-04", "2020-08-12", "2020-08-20", "2020-08-28", "2020-09-05", "2020-09-13", "2020-09-21", "2020-09-29", "2020-10-07", "2020-10-15", "2020-10-23", "2020-10-31", "2020-11-08"))
+
+
+# Add the presences
+condition1 <- Eval_Sightings$Date8days %in% date8days
+condition2 <- Eval_Sightings$SPECCODE == 1
+
+# Combinez les deux conditions avec l'opérateur logique '&'
+combined_condition <- condition1 & condition2
+
+# Utilisez 'which' pour obtenir les emplacements (indices) correspondants
+pres.i <- which(combined_condition)
+Eval_Sightings_sf = st_as_sf(Eval_Sightings, coords= c('Long', "Lat"), crs = 4326)
+pres.xy     <- st_coordinates( Eval_Sightings_sf$geometry[pres.i] ) %>% 
+  as.data.frame()
+
+
+
+
+# Add the absences
+condition1 <- Eval_Sightings$Date8days %in% date8days
+condition2.1 <- Eval_Sightings$SPECCODE == 0
+
+# Combinez les deux conditions avec l'opérateur logique '&'
+combined_condition2 <- condition1 & condition2.1
+
+# Utilisez 'which' pour obtenir les emplacements (indices) correspondants
+abs.i <- which(combined_condition2)
+
+Eval_Sightings_sf = st_as_sf(Eval_Sightings, coords= c('Long', "Lat"), crs = 4326)
+abs.xy     <- st_coordinates( Eval_Sightings_sf$geometry[abs.i] ) %>% 
+  as.data.frame()
+
+
+
+
+# Add opportunistic sightings
+opp = readRDS("/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Sightings/8days/Opportunistic/St_Laurent/2020/Sightings_8days_Opportunistic_St_Laurent_2020.RDS")
+#opp.i =  which(as.character(opp$Date8days) == date8days)
+condition1.1 <- opp$Date8days %in% date8days
+
+opp.i <- which(condition1.1)
+
+opp.xy     <- st_coordinates( opp$geometry[opp.i] ) %>% 
+  as.data.frame()
+
+
 
 # make our own ggplot of the projection
-g.proj <- ggplot()                            +
-  geom_point( data = proj.data,
-              aes( x     = x,
-                   y     = y,
-                   color = pred*1e-3 ),
-              size = 0.8 )                    +
-       
-     scale_color_viridis_c( option = "plasma",    # paletteer_c("grDevices::Lajolla", 30). paletteer_dynamic("cartography::turquoise.pal", 20) 
+g.proj <-  basemap(
+  limits = c(-70, -50, 45, 52), # sets the plot dimensions
+  bathymetry = F,             # adds the bathymetry
+  rotate = TRUE,                 # rotates the plot
+  land.border.col = "black",
+  land.col = "white",
+  lon.interval = 10, 
+  lat.interval = 5,
+  bathy.border.col = NA) + 
+  
+  #ggplot()                            +
+  geom_spatial_point( data = proj.data,      #geo_SPATIAL_point when using the basemap function
+                      aes( x     = x,
+                           y     = y,
+                           color = pred*1e-3 ),
+                      size = 0.8 )                    +
+  scale_color_viridis_c( option = "plasma",
                          limits = c(0,1),
                          na.value = "white" ) +
-  # geom_point( data = pres.xy,
-  #             aes( x     = X,
-  #                  y     = Y ),
-  #             color = "red",
-  #             shape = 8,
-  #             size  = 5 )                   +
-  #geom_point( data = opp.xy_SL,
-   #           aes( x     = X,
-    #               y     = Y ),
-     #         color = "cyan",
-      #        shape = 3,
-       #       size  = 3 )                   +
+  geom_spatial_point( data = pres.xy,
+                      aes( x     = X,
+                           y     = Y ),
+                      color = "deepskyblue",
+                      shape = 8,
+                      size  = 5      )                   +
+  geom_spatial_point( data = opp.xy,
+                      aes( x     = X,
+                           y     = Y ),
+                      color = "green",
+                      shape = 8,
+                      size  = 5 )                   +
+  theme(axis.text    = element_text ( size = 15 ),
+        axis.title   = element_text ( size = 20, face = "bold" ),
+        legend.title = element_blank()           ,
+        legend.text  = element_text ( size = 15) ,
+        legend.position = c(0.1, 0.5)            ,
+        title        = element_text ( size = 20 ) ) +
   labs( x        = "Longitude",
         y        = "Latitude",
-        subtitle = "Predicted probability of presence",
-        color    = "Prob.")
+        #subtitle = "Predicted probability of presence",
+        color    = "Prob.")                 
 
-png( paste0("Proj", "_", cfg$Single_Models, "_", cfg$Proj_Year, ".png"), width = 1500, height = 1000 )
+
+png( paste0( "ggplot", EMproj.name, '.', myBiomodEMProj@models.projected[[n]], ".", week_nb, ".png"), width = 1500, height = 1000 )
 g.proj
 dev.off()
+
+
+
+###############-------
+######Frequency of presences
+proj_df = as.data.frame(cbind(EMproj.xy$x, EMproj.xy$y, myBiomodEMProj@proj.out@val$pred[myBiomodEMProj@proj.out@val$full.name == "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo"]))     #paste0(cfg$Algo)[[n]]])) subsets values of predictions of the selected model to a dataframe
+
+colnames(proj_df) = c('Long', 'Lat', 'Pred')
+
+### conversion en sf objet
+proj_sf = st_as_sf(proj_df, coords= c('Long', "Lat"), crs = 4326)   # all projections/predictions
+pres.xy_sf = st_as_sf(pres.xy, coords= c('X', "Y"), crs = 4326)     # actual sightings
+
+###conversion en star objet
+proj_stars <- st_rasterize(proj_sf %>% dplyr::select(Pred, geometry))  # predictions as star object
+extract_proj = st_extract(proj_stars, pres.xy_sf)  # extraction of the prob of prediction at sightings localizations
+
+#hist(extract_proj$Pred, xlim = c(0, 1000), xlab = 'Prediction value at Sightings spots', main = 'Frequency of probability of presence at Sightings spots')
+
+
+
+###############-------
+######Frequency of absences
+abs.xy_sf = st_as_sf(abs.xy,        # actual sightings
+                     coords= c('X', "Y"), 
+                     crs = 4326)    
+
+###conversion en star objet
+extract_proj_abs = st_extract(proj_stars, abs.xy_sf)  # extraction of the prob of prediction at sightings localizations
+
+#hist(extract_proj_abs$Pred, xlim = c(0, 1000), xlab = 'Prediction value at NO Sightings spots', main = 'Frequency of probability of absence at NO Sightings spots')
+
+
+
+###############-------
+######Frequency of opportunistic
+opp.xy_sf = st_as_sf(opp.xy,        # actual sightings
+                     coords= c('X', "Y"), 
+                     crs = 4326)    
+
+###conversion en star objet
+extract_proj_opp = st_extract(proj_stars, opp.xy_sf)  # extraction of the prob of prediction at sightings localizations
+
+
+
+
+###############-------
+###### Créez l'histogramme en spécifiant différentes esthétiques pour chaque série de données
+donnees_combines <- bind_rows(list(Presence = extract_proj, Absence = extract_proj_abs, Opp = extract_proj_opp), .id = 'Occ')
+
+
+histogramme = ggplot(
+  donnees_combines, 
+  aes(Pred*1e-3 , fill = Occ)) +
+  geom_histogram(bins = 20, 
+                 position = "identity", 
+                 alpha = 0.5,
+                 mapping = aes(y = stat(ndensity))) +
+  labs( x        = "Probability of presence",
+        y        = "Density")        +
+  theme(axis.text    = element_text ( size = 30 ),
+        axis.title   = element_text ( size = 20, face = "bold" ),
+        legend.title = element_blank()           ,
+        legend.text  = element_text ( size = 15)  ,
+        title        = element_text ( size = 20 ) )
+
+histogramme
+
+
 
 
 
@@ -648,79 +777,70 @@ bm_PlotResponseCurves( bm.out        = myBiomodEM,
 dev.off()
 
 
+
+
+
 ###############---------- 
 ##        Spatial Projections
 ##############---------
 
 # Load data
-Proj_path = paste0("/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Environmental_Var/stars/Proj/8days/St_Laurent/", cfg$Proj_Year, '/', "proj_8days_St_Laurent_", cfg$Proj_Year, ".RData")
-proj_Env = load(Proj_path)
+#Ouverture des rasters avec le package stars
+SST8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/SST/SST_L4_2020_8days.nc",
+                         var = "sst", make_units = TRUE, make_time = TRUE, proxy = F)
 
 
-###########################
-# One week in particular
-
-week_nb = 25
-
-# semaine 25
-bathy_week = as.data.frame( bathy )
-rm(bathy)
-
-list = ls()
-env <- bathy_week
-new_columns = NULL
-for (i in (list)) {
-  objet <- get(i)  # Obtient l'objet en utilisant son nom
-  if (class(objet)[1] == "stars") {  # Vérifie si l'objet est de la classe "stars"
-    env_dataframe <- as.data.frame(objet[ , , , week_nb])  # Convertit l'objet stars en dataframe
-    colnames(env_dataframe)[4] = i
-    env = cbind(env, env_dataframe[,4])
-    new_columns = c(new_columns, i)
-    colnames(env[length(colnames(env))]) = eval(i)
-  }
-}
-
-colnames(env)[-c(1:4)] = new_columns
-env = rename(env, bathy = "elevation")
-env$bathy = as.numeric(env$bathy)
+PP8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/PP/PP_L3_2020_8days.nc",
+                        var = c("pp"), make_units = TRUE, make_time = TRUE, proxy = F)
 
 
+PAR8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/_PAR_/_PAR__PAR__L3_2020_8days.nc",
+                         var = "PAR_mean", make_units = TRUE, make_time = TRUE, proxy = F)
+
+
+CHL8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/CHL-PCA/CHL-PCA_L3_2020_8days.nc",
+                         var = "CHL-PCA_mean", make_units = TRUE, make_time = TRUE, proxy = F)
+
+
+Bathy <- read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/Bathymetry/REGRIDDED1km_gebco_2023_n54.0_s37.0_w-74.0_e-45.0.nc", var = 'elevation', make_units = TRUE, make_time = TRUE, proxy = FALSE)
+
+BathyCRS=st_crs(SST8days2020)
+st_crs(Bathy)=BathyCRS
 
 #######################
-# All weeks combined
+#Set dataframe for the proj
 
-nb_weeks = 12
+nb_weeks = 24  #the number of week(s) you want to project on
 
-bathy_week = as.data.frame( bathy )
-rm(bathy)
+#for the Gulf of SL
 
-list = ls()
-env <- do.call(rbind, replicate(nb_weeks, bathy_week, simplify = F))
-new_columns = NULL
-for (i in (list)) {
-  objet <- get(i)  # Obtient l'objet en utilisant son nom
-  if (class(objet)[1] == "stars") {  # Vérifie si l'objet est de la classe "stars"
-    env_dataframe <- as.data.frame(objet[ , , , 20:31])  # Convertit l'objet stars en dataframe
-    colnames(env_dataframe)[4] = i
-    env = cbind(env, env_dataframe[,4])
-    new_columns = c(new_columns, i)
-    colnames(env[length(colnames(env))]) = eval(i)
-  }
-}
+ENV8days2020_proj_8days = (ENV8days2020[ ,400:1700 , 350:1000, 17:40])     #crops the SL with the rights week(s)
+ENV8days2020_proj_8days_df = as.data.frame(ENV8days2020_proj_8days)        #makes a dataframe 
 
-colnames(env)[-c(1:4)] = new_columns
-env = rename(env, bathy = "elevation")
-env$bathy = as.numeric(env$bathy)
+Bathy_proj = Bathy[, 400:1700 , 350:1000]
+Bathy_proj_df = as.data.frame(Bathy_proj)
+Bathy_proj_8days = replicate(nb_weeks, Bathy_proj_df, simplify = F)        #crops the SL with the rights week(s)
+Bathy_proj_8days_df = as.data.frame(do.call(rbind, Bathy_proj_8days))      #makes a dataframe
+
+CHL8days2020_proj_8days = (CHL8days2020[ ,400:1700 , 350:1000, 17:40])     #crops the SL with the rights week(s)
+CHL8days2020_proj_8days_df = as.data.frame(CHL8days2020_proj_8days)        #makes a dataframe
+
+ENV8days2020_proj_all_8days= cbind(ENV8days2020_proj_8days_df, Bathy_proj_8days_df$elevation, CHL8days2020_proj_8days_df$CHL.PCA_mean)                                    #makes a dataframe
+ENV8days2020_proj_all_8days_df = rename(ENV8days2020_proj_all_8days, bathy = 'Bathy_proj_8days_df$elevation', CHL = 'CHL8days2020_proj_8days_df$CHL.PCA_mean')
+ENV8days2020_proj_all_8days_df$bathy = as.numeric(ENV8days2020_proj_all_8days_df$bathy)
+
+
+
 
 ######################
 ## set data for projection ----
 
 EMproj.model  <- myBiomodEM #_v1.0
-EMproj.name   <- paste0('Proj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, '.', '20to31')
-EMproj.env    <- env[ , env.var ]
-EMproj.xy     <- env[, 1:2]
+EMproj.name   <- paste0('EMProj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, '.', '20to31')             # don't forget to change the name according to the period of proj
+EMproj.env    <- ENV8days2020_proj_all_8days_df[ , env.var ]
+EMproj.xy     <- ENV8days2020_proj_all_8days_df[, 1:2]
 EMproj.chosen <- get_built_models( NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.out,
-                                full.name = "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo" )
+                                full.name = "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo" )  # don't forget to change the name according to the model
 
 
 
@@ -752,28 +872,23 @@ proj.gg <- plot(
   #maxcell     = 5e+05,                 #maximum number of cells to plot. Argument transmitted to plot.
 )
 
+
+
 # number of the chosen model to be projected
 n = 1
 
 ## --- save proj
 
-png( paste0( EMproj.name, '.', myBiomodEMProj@models.projected[[n]] ), width = 1000, height = 800 )
-proj.gg[[n]]
-dev.off()
-
-
-# get data & get rid of NA
-# !!! WARNING !!! there is only one element in the output list
-#                 because I specified with the option "models.chosen"
-#                 that I want only 1 model; if you request more, you 
-#                 will simply have a list with several elements
 proj.na   <- is.na( proj.gg[[n]]$data$pred )
 proj.data <- proj.gg[[n]]$data[!proj.na,]
 
+
+# give all 8days periods of the according weeks of projection to select the right Sightings to add to the plot
 date8days = paste0(c("2020-05-08", "2020-05-16", "2020-05-24" ,"2020-06-01", "2020-06-09", "2020-06-17", "2020-06-25", "2002-07-03", "2020-07-11", "2020-07-19", "2020-07-27", "2020-08-04", "2020-08-12", "2020-08-20", "2020-08-28", "2020-09-05", "2020-09-13", "2020-09-21", "2020-09-29", "2020-10-07", "2020-10-15", "2020-10-23", "2020-10-31", "2020-11-08"))
 
-# Add the presences
 
+
+# Add the presences
 condition1 <- Eval_Sightings$Date8days %in% date8days
 condition2 <- Eval_Sightings$SPECCODE == 1
 
@@ -782,14 +897,13 @@ combined_condition <- condition1 & condition2
 
 # Utilisez 'which' pour obtenir les emplacements (indices) correspondants
 pres.i <- which(combined_condition)
-#pres.i      <- which(as.character(Eval_Sightings$Date8days) == date8days & Eval_Sightings$SPECCODE == 1)
 Eval_Sightings_sf = st_as_sf(Eval_Sightings, coords= c('Long', "Lat"), crs = 4326)
 pres.xy     <- st_coordinates( Eval_Sightings_sf$geometry[pres.i] ) %>% 
   as.data.frame()
 
-# Add the absences
-#abs.i      <- which(as.character(Eval_Sightings$Date8days) == date8days  & Eval_Sightings$SPECCODE == 0)
 
+
+# Add the absences
 condition1 <- Eval_Sightings$Date8days %in% date8days
 condition2.1 <- Eval_Sightings$SPECCODE == 0
 
@@ -803,15 +917,19 @@ Eval_Sightings_sf = st_as_sf(Eval_Sightings, coords= c('Long', "Lat"), crs = 432
 abs.xy     <- st_coordinates( Eval_Sightings_sf$geometry[abs.i] ) %>% 
   as.data.frame()
 
+
+
+
 # Add opportunistic sightings
 opp = readRDS("/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Sightings/8days/Opportunistic/St_Laurent/2020/Sightings_8days_Opportunistic_St_Laurent_2020.RDS")
-#opp.i =  which(as.character(opp$Date8days) == date8days)
 condition1.1 <- opp$Date8days %in% date8days
 
 opp.i <- which(condition1.1)
 
 opp.xy     <- st_coordinates( opp$geometry[opp.i] ) %>% 
   as.data.frame()
+
+
 
 
 # make our own ggplot of the projection
@@ -866,7 +984,7 @@ dev.off()
 
 ###############-------
 ######Frequency of presences
-proj_df = as.data.frame(cbind(EMproj.xy$x, EMproj.xy$y, myBiomodEMProj@proj.out@val$pred[myBiomodEMProj@proj.out@val$full.name == "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo"]))     #paste0(cfg$Algo)[[n]]]))
+proj_df = as.data.frame(cbind(EMproj.xy$x, EMproj.xy$y, myBiomodEMProj@proj.out@val$pred[myBiomodEMProj@proj.out@val$full.name == "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo"]))     #paste0(cfg$Algo)[[n]]])) subsets values of predictions of the selected model to a dataframe
 
 colnames(proj_df) = c('Long', 'Lat', 'Pred')
 
@@ -878,51 +996,32 @@ pres.xy_sf = st_as_sf(pres.xy, coords= c('X', "Y"), crs = 4326)     # actual sig
 proj_stars <- st_rasterize(proj_sf %>% dplyr::select(Pred, geometry))  # predictions as star object
 extract_proj = st_extract(proj_stars, pres.xy_sf)  # extraction of the prob of prediction at sightings localizations
 
-hist(extract_proj$Pred, xlim = c(0, 1000), xlab = 'Prediction value at Sightings spots', main = 'Frequency of probability of presence at Sightings spots')
+#hist(extract_proj$Pred, xlim = c(0, 1000), xlab = 'Prediction value at Sightings spots', main = 'Frequency of probability of presence at Sightings spots')
+
 
 
 ###############-------
 ######Frequency of absences
-proj_df = as.data.frame(cbind(EMproj.xy$x, EMproj.xy$y, myBiomodEMProj@proj.out@val$pred[myBiomodEMProj@proj.out@val$full.name == "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo"]))     #paste0(cfg$Algo)[[n]]]))
-
-colnames(proj_df) = c('Long', 'Lat', 'Pred')
-
-####conversion en sf objet
-proj_sf = st_as_sf( proj_df,        # all projections/predictions
-                    coords= c('Long', "Lat"), 
-                    crs = 4326)   
-
 abs.xy_sf = st_as_sf(abs.xy,        # actual sightings
                      coords= c('X', "Y"), 
                      crs = 4326)    
 
 ###conversion en star objet
-proj_stars <- st_rasterize(proj_sf %>% dplyr::select(Pred, geometry))  # predictions as star object
-
 extract_proj_abs = st_extract(proj_stars, abs.xy_sf)  # extraction of the prob of prediction at sightings localizations
 
-hist(extract_proj_abs$Pred, xlim = c(0, 1000), xlab = 'Prediction value at NO Sightings spots', main = 'Frequency of probability of absence at NO Sightings spots')
+#hist(extract_proj_abs$Pred, xlim = c(0, 1000), xlab = 'Prediction value at NO Sightings spots', main = 'Frequency of probability of absence at NO Sightings spots')
+
 
 
 ###############-------
 ######Frequency of opportunistic
-proj_df = as.data.frame(cbind(EMproj.xy$x, EMproj.xy$y, NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.outProj@proj.out@val$pred[NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.outProj@proj.out@val$full.name == "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo"]))     #paste0(cfg$Algo)[[n]]]))
-
-colnames(proj_df) = c('Long', 'Lat', 'Pred')
-
-###conversion en sf objet
-proj_sf = st_as_sf( proj_df,        # all projections/predictions
-                    coords= c('Long', "Lat"), 
-                    crs = 4326)   
-
 opp.xy_sf = st_as_sf(opp.xy,        # actual sightings
                      coords= c('X', "Y"), 
                      crs = 4326)    
 
 ###conversion en star objet
-proj_stars <- st_rasterize(proj_sf %>% dplyr::select(Pred, geometry))  # predictions as star object
-
 extract_proj_opp = st_extract(proj_stars, opp.xy_sf)  # extraction of the prob of prediction at sightings localizations
+
 
 
 
@@ -947,6 +1046,8 @@ histogramme = ggplot(
         title        = element_text ( size = 20 ) )
 
 histogramme
+
+
 
 
 #################

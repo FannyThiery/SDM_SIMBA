@@ -30,16 +30,16 @@ PP8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/dat
                         var = c("pp"), make_units = TRUE, make_time = TRUE, proxy = F)
 
 
-CDM8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/CDM/CDM_L3_2020_8days.nc",
-                         var = c("CDM_mean"), make_units = TRUE, make_time = TRUE, proxy = FALSE)
+#CDM8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/CDM/CDM_L3_2020_8days.nc",
+                      #   var = c("CDM_mean"), make_units = TRUE, make_time = TRUE, proxy = FALSE)
 
 
 PAR8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/_PAR_/_PAR__PAR__L3_2020_8days.nc",
                          var = "PAR_mean", make_units = TRUE, make_time = TRUE, proxy = F)
 
 
-BBP8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/BBP/BBP_L3_2020_8days.nc",
-                         var = "BBP_mean", make_units = TRUE, make_time = TRUE, proxy = F)
+#BBP8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/BBP/BBP_L3_2020_8days.nc",
+ #                        var = "BBP_mean", make_units = TRUE, make_time = TRUE, proxy = F)
 
 
 CHL8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/CHL-PCA/CHL-PCA_L3_2020_8days.nc",
