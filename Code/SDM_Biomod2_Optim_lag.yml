@@ -1,0 +1,74 @@
+
+### Loading corresponding data
+initial_wd: '/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Extracted_Data_DFO_Clean'
+output_wd: '~/Documents/SDM_SIMBA/Models/'
+
+###Dataset
+    #Defining objects
+MyRespName: 'NARW'
+S_data: 'Sightings'
+E_data: 'Environmental_Var'
+Tempstemp: '8days'         # 8days or Daily
+Type: 'Surveys'            # Opportunistic or Surveys
+Domain: 'St_Laurent'       # Global or St_Laurent
+Year:
+   - '2017'
+   - '2018'
+   - '2019'
+   - '2020'
+ 
+
+Eval_S_data: 'Sightings'
+Eval_E_data: 'Environmental_Var'
+Eval_Tempstemp: '8days'         # 8days or Daily
+Eval_Type: 'Surveys'            # Opportunistic or Surveys
+Eval_Domain: 'St_Laurent'
+Eval_Year: 
+  - '2020'
+
+
+run: 'v2.001'
+
+
+Environmental_Variables:
+  - "SST"
+  - "CHL"
+  - "PP"
+  - "PAR"
+  - "Bathy"
+              
+    #Models
+Single_Models: 
+  - "GAM"
+  - "GBM"
+  #- "RF"
+
+CV_strategy: "random"
+#must be among random, kfold, block, strat, env or user.defined
+
+CV_perc: 0.70
+
+Prev: 0.7
+
+Metrics_Eval: 
+  - 'ROC'
+  - 'TSS'
+  
+Seed_Val: 42
+
+
+  #Projection
+Proj_Year: 2020
+
+Algo: 
+  - "EMmean"
+#  - "EMwmean"
+  - "EMca"
+  - "EMcv"
+#  - "EMci"
+
+#### Description
+
+
+
+

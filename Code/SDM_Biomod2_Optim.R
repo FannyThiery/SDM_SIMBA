@@ -226,7 +226,7 @@ myBiomodModel <- BIOMOD_Modeling(
   #CV.strat          = 'both',                                     #if strategy = 'env', a character corresponding to how data will partitioned along gradient, must be among x, y, both
   #CV.user.table     = NULL,                                       #a matrix or data.frame defining for each repetition (in columns) which observation lines should be used for models calibration (TRUE) and validation (FALSE) (see BIOMOD_CrossValidation)
   #weights           = 0.6,                                       #a vector of numeric values corresponding to observation weights (one per observation, see Details)
-  #prevalence        = 0.6,                                        #a numeric between 0 and 1 corresponding to the species prevalence to build 'weighted response weights' (see Details)
+  prevalence        = cfg$Prev,                                        #a numeric between 0 and 1 corresponding to the species prevalence to build 'weighted response weights' (see Details)
   metric.eval       = cfg$Metrics_Eval,                            #"KAPPA", "TSS","ACCURACY", BIAS, POD, FAR, POFD, SR, CSI, ETS, HK, HSS, OR, ORSS
   var.import        = 5,                                          #an integer corresponding to the number of permutations to be done for each variable to estimate variable importance
   scale.models      = FALSE,                                      #a logical value defining whether all models predictions should be scaled with a binomial GLM or not
@@ -645,7 +645,7 @@ myBiomodEM <- BIOMOD_EnsembleModeling(
   models.chosen = "all",  #a vector containing model names to be kept, must be either all or a sub-selection of model names that can be obtained with the get_built_models function
   em.by = "all", #a character corresponding to the way kept models will be combined to build the ensemble models, must be among PA_dataset+repet, PA_dataset+algo, PA_dataset, algo, all
   metric.select = cfg$Metrics_Eval, # with metric.select.thresh to exclude single models "KAPPA", "TSS", "ROC"....
-  metric.select.thresh = c(0.7, 0.3), #A vector of numeric values corresponding to the minimum scores (one for each metric.select) below which single models will be excluded from the ensemble model building
+  metric.select.thresh = c(0.7, 0.4), #A vector of numeric values corresponding to the minimum scores (one for each metric.select) below which single models will be excluded from the ensemble model building
   metric.select.table = NULL, #If metric.select = 'user.defined', a data.frame containing evaluation scores calculated for each single models and that will be compared to metric.select.thresh values 
   #to exclude some of them from the ensemble model building, with metric.select rownames, and models.chosen colnames
   metric.eval = cfg$Metrics_Eval, #"KAPPA", "TSS", 
@@ -807,10 +807,13 @@ Bathy <- read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/
 BathyCRS=st_crs(SST8days2020)
 st_crs(Bathy)=BathyCRS
 
+
+
+
 #######################
 #Set dataframe for the proj
 
-nb_weeks = 24  #the number of week(s) you want to project on
+nb_weeks = 25  #the number of week(s) you want to project on
 
 #for the Gulf of SL
 
@@ -829,16 +832,18 @@ ENV8days2020_proj_all_8days= cbind(ENV8days2020_proj_8days_df, Bathy_proj_8days_
 ENV8days2020_proj_all_8days_df = rename(ENV8days2020_proj_all_8days, bathy = 'Bathy_proj_8days_df$elevation', CHL = 'CHL8days2020_proj_8days_df$CHL.PCA_mean')
 ENV8days2020_proj_all_8days_df$bathy = as.numeric(ENV8days2020_proj_all_8days_df$bathy)
 
+ENV_proj = readRDS("/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Environmental_Var/stars/Proj/8days/St_Laurent/2020/proj_8days_St_Laurent_2020_17to40_df.RDS")
 
 
+week_nb = 29
 
 ######################
 ## set data for projection ----
 
-EMproj.model  <- myBiomodEM #_v1.0
-EMproj.name   <- paste0('EMProj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, '.', '20to31')             # don't forget to change the name according to the period of proj
-EMproj.env    <- ENV8days2020_proj_all_8days_df[ , env.var ]
-EMproj.xy     <- ENV8days2020_proj_all_8days_df[, 1:2]
+EMproj.model  <- NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.out #_v1.0
+EMproj.name   <- paste0('EMProj', '.', cfg$Tempstemp, '.', cfg$Domain, '.', cfg$Year[1], 'to', cfg$Year[n], '.', cfg$Eval_Year, '.', cfg$run, '.', week_nb)             # don't forget to change the name according to the period of proj
+EMproj.env    <- ENV_proj[ , env.var ]
+EMproj.xy     <- ENV_proj[, 1:2]
 EMproj.chosen <- get_built_models( NARW.8days.St_Laurent.2017to2020.2020.v1.001.ensemble.models.out,
                                 full.name = "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo" )  # don't forget to change the name according to the model
 
@@ -850,10 +855,10 @@ myBiomodEMProj <- BIOMOD_EnsembleForecasting(bm.em = EMproj.model,
                                              proj.name = EMproj.name,
                                              new.env = EMproj.env,
                                              models.chosen = EMproj.chosen,
-                                             #metric.binary = 'all',
-                                             #metric.filter = 'all',
+                                             #metric.binary = 'TSS',
+                                             #metric.filter = 'TSS',
                                              compress = TRUE,
-                                             nb.cpu = 15,
+                                             nb.cpu = 25,
                                              na.rm = TRUE)
 
 
@@ -884,7 +889,7 @@ proj.data <- proj.gg[[n]]$data[!proj.na,]
 
 
 # give all 8days periods of the according weeks of projection to select the right Sightings to add to the plot
-date8days = paste0(c("2020-05-08", "2020-05-16", "2020-05-24" ,"2020-06-01", "2020-06-09", "2020-06-17", "2020-06-25", "2002-07-03", "2020-07-11", "2020-07-19", "2020-07-27", "2020-08-04", "2020-08-12", "2020-08-20", "2020-08-28", "2020-09-05", "2020-09-13", "2020-09-21", "2020-09-29", "2020-10-07", "2020-10-15", "2020-10-23", "2020-10-31", "2020-11-08"))
+date8days = paste0("2020-08-20")#, "2020-05-16", "2020-05-24" ,"2020-06-01", "2020-06-09", "2020-06-17", "2020-06-25", "2002-07-03", "2020-07-11", "2020-07-19", "2020-07-27", "2020-08-04", "2020-08-12", "2020-08-20", "2020-08-28", "2020-09-05", "2020-09-13", "2020-09-21", "2020-09-29", "2020-10-07", "2020-10-15", "2020-10-23", "2020-10-31", "2020-11-08"))
 
 
 
@@ -947,10 +952,10 @@ g.proj <-  basemap(
   geom_spatial_point( data = proj.data,
               aes( x     = x,
                    y     = y,
-                   color = pred*1e-3 ),
+                   color = (pred*1e-3) ),
               size = 0.8 )                    +
   scale_color_viridis_c( option = "plasma",
-                         limits = c(0,1),
+                         #limits = c(0,1),
                          na.value = "white" ) +
   geom_spatial_point( data = pres.xy,
               aes( x     = X,
@@ -968,7 +973,7 @@ g.proj <-  basemap(
         axis.title   = element_text ( size = 20, face = "bold" ),
         legend.title = element_blank()           ,
         legend.text  = element_text ( size = 15) ,
-        legend.position = c(0.1, 0.5)            ,
+        legend.position = c(0.08, 0.8)            ,
         title        = element_text ( size = 20 ) ) +
   labs( x        = "Longitude",
         y        = "Latitude",
@@ -976,7 +981,7 @@ g.proj <-  basemap(
         color    = "Prob.")                 
   
 
-png( paste0( "ggplot", EMproj.name, '.', myBiomodEMProj@models.projected[[n]], ".", week_nb, ".png"), width = 1500, height = 1000 )
+png( paste0( "ggplot", EMproj.name, '.', myBiomodEMProj@models.projected[[n]], ".", week_nb , ".png"), width = 1500, height = 1000 )
 g.proj
 dev.off()
 
@@ -984,7 +989,7 @@ dev.off()
 
 ###############-------
 ######Frequency of presences
-proj_df = as.data.frame(cbind(EMproj.xy$x, EMproj.xy$y, myBiomodEMProj@proj.out@val$pred[myBiomodEMProj@proj.out@val$full.name == "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo"]))     #paste0(cfg$Algo)[[n]]])) subsets values of predictions of the selected model to a dataframe
+proj_df = as.data.frame(cbind(EMproj.xy$lon, EMproj.xy$lat, myBiomodEMProj@proj.out@val$pred[myBiomodEMProj@proj.out@val$full.name == "NARW_EMcaByROC_mergedData_mergedRun_mergedAlgo"]))     #paste0(cfg$Algo)[[n]]])) subsets values of predictions of the selected model to a dataframe
 
 colnames(proj_df) = c('Long', 'Lat', 'Pred')
 
@@ -1045,9 +1050,9 @@ histogramme = ggplot(
         legend.text  = element_text ( size = 15)  ,
         title        = element_text ( size = 20 ) )
 
+png( paste0( "Histo_proj", "_",  week_nb,  ".png"), width = 1500, height = 1000 )
 histogramme
-
-
+dev.off()
 
 
 #################

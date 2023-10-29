@@ -26,7 +26,7 @@ SST8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/da
                          var = "sst", make_units = TRUE, make_time = TRUE, proxy = F)
 
 
-PP8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/PP/PP_L3_2020_8days.nc",
+PP8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/PP_L4/PP_L4_2020_8days.nc",
                         var = c("pp"), make_units = TRUE, make_time = TRUE, proxy = F)
 
 
@@ -42,7 +42,7 @@ PAR8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/da
  #                        var = "BBP_mean", make_units = TRUE, make_time = TRUE, proxy = F)
 
 
-CHL8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/CHL-PCA/CHL-PCA_L3_2020_8days.nc",
+CHL8days2020 = read_ncdf("/Ext_16T_andromede/0_ARCTUS_Projects/15_SmartWhales/data/GC/ATLNW/DATA/CHL-PCA_L4/CHL-PCA_L4_2020_8days.nc",
                          var = "CHL-PCA_mean", make_units = TRUE, make_time = TRUE, proxy = F)
 
 
@@ -281,21 +281,24 @@ saveRDS(RIWH_2020_DFO_filt, '/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFr
 
 # Jeu de données pour les projections                   
 
-nb_weeks = 24
+nb_weeks = 1
 
 #Juste le St lolo pour test
-ENV8days2020_proj_8days = (ENV8days2020[ ,400:1700 , 350:1000, 17:40])
+ENV8days2020_proj_8days = (ENV8days2020[ ,400:1700 , 350:1000, 41])
 ENV8days2020_proj_8days_df = as.data.frame(ENV8days2020_proj_8days)
 Bathy_proj = Bathy[, 400:1700 , 350:1000]
 Bathy_proj_df = as.data.frame(Bathy_proj)
 Bathy_proj_8days = replicate(nb_weeks, Bathy_proj_df, simplify = F)
 Bathy_proj_8days_df = as.data.frame(do.call(rbind, Bathy_proj_8days)) 
-CHL8days2020_proj_8days = (CHL8days2020[ ,400:1700 , 350:1000, 17:40])
+CHL8days2020_proj_8days = (CHL8days2020[ ,400:1700 , 350:1000, 41])
 CHL8days2020_proj_8days_df = as.data.frame(CHL8days2020_proj_8days)
 
 ENV8days2020_proj_all_8days= cbind(ENV8days2020_proj_8days_df, Bathy_proj_8days_df$elevation, CHL8days2020_proj_8days_df$CHL.PCA_mean)
 ENV8days2020_proj_all_8days_df = rename(ENV8days2020_proj_all_8days, bathy = 'Bathy_proj_8days_df$elevation', CHL = 'CHL8days2020_proj_8days_df$CHL.PCA_mean')
 ENV8days2020_proj_all_8days_df$bathy = as.numeric(ENV8days2020_proj_all_8days_df$bathy)
+
+saveRDS(ENV8days2020_proj_all_8days_df, "/Ext_16T_andromede/Extern_workdir/thieryf_WD/DataFrame/Environmental_Var/stars/Proj/8days/St_Laurent/2020/proj_8days_St_Laurent_2020_41_df.RDS")
+
 
 # semaine 33
 ENV8days2020_test2 = (ENV8days2020[ ,400:1300 , 400:1000, 33])
